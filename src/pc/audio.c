@@ -99,10 +99,14 @@ static float s_master_volume = 1.0f;
 static float s_music_volume = 1.0f;
 static float s_sfx_volume = 1.0f;
 
+static float output_gain(void) {
+    return getenv("MELEE_MUTE") != NULL ? 0.0f : s_master_volume;
+}
+
 void pc_audio_set_volume(float volume) {
     s_master_volume = volume;
     if (s_stream)
-        SDL_SetAudioStreamGain(s_stream, volume);
+        SDL_SetAudioStreamGain(s_stream, output_gain());
 }
 
 void pc_audio_set_music_volume(float volume) {
@@ -751,7 +755,7 @@ void AXInit(void) {
         s_stream =
             SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, audio_pull, NULL);
         if (s_stream)
-            SDL_SetAudioStreamGain(s_stream, s_master_volume);
+            SDL_SetAudioStreamGain(s_stream, output_gain());
         if (s_stream == NULL) {
             fprintf(stderr, "audio: SDL_OpenAudioDeviceStream failed: %s\n", SDL_GetError());
             return;
