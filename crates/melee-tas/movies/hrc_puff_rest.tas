@@ -1,0 +1,22 @@
+# Home Run Contest: Jigglypuff turns her back on Sandbag, short hops into it
+# and Rests. 154.8 ft. Run with MELEE_BOOT_SCENE=homerun
+# MELEE_BOOT_CHARACTER=15 MELEE_NET_REPLAY=<compiled .mrc>, or `just hrc-demo`.
+seed 0x00000001
+ports 1
+
+# The match loads and GO lands near frame 84.
+wait 100
+
+# Close the gap, stop, then tilt left to turn around.
+p1 stick 127,0 x3
+wait 12
+p1 stick -50,0 x4
+wait 4
+
+# Short hop backwards into the bag. Rest connects with 12 to 18 frames of drift.
+p1 X stick 127,0 x2
+p1 stick 127,0 x15
+p1 B stick 0,-127 x3
+
+# Sleep through the flight, the landing and the result.
+wait 620

@@ -6,6 +6,7 @@ tas := "target/release/melee-tas"
 movies := "crates/melee-tas/movies"
 disc := env_var_or_default("MELEE_DISC", "")
 events_port := "7788"
+quiet := "MELEE_MUTE=1"
 
 export DAWN_INCLUDE_DIR := justfile_directory() / build_dir / "_deps/dawn_prebuilt-src/include"
 
@@ -82,20 +83,37 @@ untas movie: build-tas _out
 
 # replay a .mrc movie with the HUD on; frames=0 runs until the window closes
 replay movie frames="0": build _disc
-    MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
 
 # render a .mrc movie to build/captures/<stem>.mp4 at an exact 60 fps
 render movie frames="0": build _disc _out
-    MELEE_CAPTURE={{out_dir}}/{{file_stem(movie)}}.mp4 MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_CAPTURE={{out_dir}}/{{file_stem(movie)}}.mp4 MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
     just probe {{out_dir}}/{{file_stem(movie)}}.mp4
 
 # compile the bundled full-match script and render it to video
 demo: (tas movies / "debug_vs_full_match.tas")
     just render {{out_dir}}/debug_vs_full_match.mrc 8697
 
+# play Home Run Contest with no menus; character is a CKind number (15 is Jigglypuff)
+hrc character="15" *args: build _disc
+    MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} --no-card "{{disc}}"
+
+# render a Home Run Contest movie to build/captures/<stem>.mp4, muted
+hrc-render movie character="15" frames="0": build _disc _out
+    {{quiet}} MELEE_CAPTURE={{out_dir}}/{{file_stem(movie)}}.mp4 MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+    just probe {{out_dir}}/{{file_stem(movie)}}.mp4
+
+# compile the bundled Jigglypuff Rest movie and render it to video
+hrc-demo: (tas movies / "hrc_puff_rest.tas")
+    just hrc-render {{out_dir}}/hrc_puff_rest.mrc 15 760
+
+# replay a Home Run Contest movie while shipping match events (run `just events` first)
+hrc-events movie character="15" frames="0": build _disc
+    {{quiet}} MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+
 # replay a movie while shipping match events to a local collector (run `just events` first)
 replay-events movie frames="0": build _disc
-    MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
 
 # listen for NDJSON match events and pretty-print them
 events:

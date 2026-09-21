@@ -4,6 +4,10 @@
 
 #include "forward.h"
 #include "gm_unsplit.h"
+#ifdef TARGET_PC
+#include "gm_1A3F.h"
+#include "gmboot.h"
+#endif
 #include "gmmain_lib.h"
 #include "gmvsmelee.h"
 #include "types.h"
@@ -13,6 +17,10 @@
 #include <melee/lb/lbtime.h>
 #include <melee/lb/types.h>
 #include <melee/mn/types.h>
+#ifdef TARGET_PC
+#include <stdlib.h>
+#include <dolphin/os.h>
+#endif
 
 GameModeState gm_Mode_Homerun_States[] = {
     {
@@ -177,8 +185,56 @@ void gm_Mode_Homerun_OnInit(void)
     gm_InitVsMode(data);
 }
 
+#ifdef TARGET_PC
+static u8 bootCharacter(void)
+{
+    const char* want = getenv("MELEE_BOOT_CHARACTER");
+    char* end;
+    long ckind;
+
+    if (want == NULL || want[0] == '\0') {
+        return CKind_Mario;
+    }
+    ckind = strtol(want, &end, 0);
+    if (*end != '\0' || ckind < CKind_Captain || ckind > CKind_Ganon) {
+        OSReport("MELEE_BOOT_CHARACTER: '%s' is not a playable CKind "
+                 "(%d..%d); using Mario\n",
+                 want, CKind_Captain, CKind_Ganon);
+        return CKind_Mario;
+    }
+    return (u8) ckind;
+}
+#endif
+
 void gm_Mode_Homerun_OnLoad(void)
 {
     gm_804D68F8 = gm_801677F0();
     gm_804D68F9 = 0;
+#ifdef TARGET_PC
+    if (pc_boot_scene() == GM_HOME_RUN_CONTEST) {
+        VsModeData* vs = &gmHomeRun_VsModeData;
+        struct GameCache* cache;
+
+        gm_SetupAllPlayerDefaults(vs->start.players);
+        vs->start.players[0].ckind = bootCharacter();
+        vs->start.players[0].color = 0;
+        vs->start.players[1].ckind = ChKind_Sandbag;
+        vs->start.players[1].cpu_kind = 0xF;
+        vs->start.players[1].defense_ratio = 1.0f;
+        vs->start.players[1].slot_type = Gm_PKind_Cpu;
+        vs->start.players[1].stocks = 1;
+        vs->start.players[1].team = 1;
+
+        cache = &lbDvd_GetPreloadCacheScene()->game_cache;
+        lbDvd_80018C6C();
+        cache->entries[0].char_id = vs->start.players[0].ckind;
+        cache->entries[0].color = 0;
+        cache->entries[1].char_id = ChKind_Sandbag;
+        cache->entries[1].color = 0;
+        cache->stkind = 0x54;
+        lbDvd_80018254();
+
+        gm_SetGameModeStateId(1);
+    }
+#endif
 }
