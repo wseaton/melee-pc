@@ -47,3 +47,6 @@ mods/*
 # CTest temporary files
 Testing/
 
+
+# Local settings loaded by the justfile.
+.env
