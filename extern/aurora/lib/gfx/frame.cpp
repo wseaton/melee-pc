@@ -725,6 +725,8 @@ void after_submit() noexcept { depth_peek::after_submit(); }
 
 void gpu_synchronize() { render_worker::synchronize(); }
 
+void pump_gpu_events() { wait_for_gpu_progress(std::chrono::milliseconds{1}); }
+
 void synchronize() { render_worker::synchronize(); }
 
 void after_present() noexcept {

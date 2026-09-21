@@ -47,6 +47,13 @@ struct Overlay {
 };
 Overlay g_overlay;
 
+struct Capture {
+  AuroraCaptureCallback record = nullptr;
+  AuroraCaptureSubmittedCallback submitted = nullptr;
+  void* user = nullptr;
+};
+Capture g_capture;
+
 #ifdef AURORA_ENABLE_GX
 // GPU
 using webgpu::g_device;
@@ -345,7 +352,7 @@ void end_frame() noexcept {
 #endif
 
   gfx::end_frame([rmlBindGroup = std::move(rmlBindGroup), rmlOverlay, viewport, overlay = g_overlay,
-                  imguiDrawData = std::move(imguiDrawData)](
+                  capture = g_capture, imguiDrawData = std::move(imguiDrawData)](
                      wgpu::CommandEncoder& encoder, std::vector<gfx::AfterSubmitCallback> afterSubmitCallbacks) {
     wgpu::Texture currentTexture;
     wgpu::TextureView currentView;
@@ -376,6 +383,7 @@ void end_frame() noexcept {
     const bool canPresent = currentTexture && currentView &&
                             webgpu::g_graphicsConfig.surfaceConfiguration.width > 0 &&
                             webgpu::g_graphicsConfig.surfaceConfiguration.height > 0;
+    bool captured = false;
     if (canPresent) {
       wgpu::BindGroup presentBindGroup;
       if (rmlBindGroup && !rmlOverlay) {
@@ -446,6 +454,19 @@ void end_frame() noexcept {
         }
         pass.End();
       }
+      if (capture.record != nullptr &&
+          (webgpu::g_graphicsConfig.surfaceConfiguration.usage & wgpu::TextureUsage::CopySrc)) {
+        const AuroraCaptureFrame frame{
+            .device = g_device.Get(),
+            .encoder = encoder.Get(),
+            .texture = currentTexture.Get(),
+            .format = static_cast<WGPUTextureFormat>(webgpu::g_graphicsConfig.surfaceConfiguration.format),
+            .width = webgpu::g_graphicsConfig.surfaceConfiguration.width,
+            .height = webgpu::g_graphicsConfig.surfaceConfiguration.height,
+        };
+        capture.record(&frame, capture.user);
+        captured = true;
+      }
     } else {
       Log.info("Skipping present; no usable surface texture ({})", magic_enum::enum_name(surfaceStatus));
     }
@@ -457,6 +478,9 @@ void end_frame() noexcept {
       g_queue.Submit(1, &buffer);
     }
     webgpu::gpu_prof::after_submit();
+    if (captured && capture.submitted != nullptr) {
+      capture.submitted(capture.user);
+    }
     if (canPresent && g_surface) {
       ZoneScopedN("Present");
       wgpu::ConvertibleStatus status = wgpu::Status::Error;
@@ -574,5 +598,18 @@ void aurora_preserve_frame_buffer(bool preserve) {
 #endif
 }
 void aurora_set_overlay_callback(AuroraOverlayCallback callback, void* user) { aurora::g_overlay = {callback, user}; }
+void aurora_set_capture_callback(AuroraCaptureCallback record, AuroraCaptureSubmittedCallback submitted, void* user) {
+  aurora::g_capture = {record, submitted, user};
+}
+void aurora_gpu_synchronize(void) {
+#ifdef AURORA_ENABLE_GX
+  aurora::gfx::gpu_synchronize();
+#endif
+}
+void aurora_pump_gpu_events(void) {
+#ifdef AURORA_ENABLE_GX
+  aurora::gfx::pump_gpu_events();
+#endif
+}
 void aurora_set_timescale(float scale) { aurora::time::set_scale(scale); }
 float aurora_get_timescale() { return aurora::time::scale(); }

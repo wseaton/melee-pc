@@ -208,6 +208,10 @@ per-device `.controller` files; everything else shares `launcher.cfg`.
 | `MELEE_PIPELINE_JOBS=<n>` | Background shader-pipeline compile threads (default half the hardware threads, 1..8). |
 | `MELEE_UCF=1` | Universal Controller Fix (UCF 0.8x dashback and shield-drop rules); overrides the `ucf` launcher.cfg pref. |
 | `MELEE_GC_ADAPTER=0` | Hand the GameCube adapter (WUP-028) back to SDL's gamepad driver instead of reading it raw. |
+| `MELEE_CAPTURE=<out.mp4>` | Read every presented frame (game image plus overlays) back off the GPU and pipe it to `ffmpeg`. Forces VSync off and lets the encoder set the pace: the game blocks rather than dropping a frame, so a replay always yields a complete file. The file is tagged with the simulation rate at the moment capture starts (60 fps unless the debug menu changed it), and changing that rate or the window size mid-capture ends the recording. Frames presented while the F1 menu holds the game paused are recorded too, so the recorded frame index only matches the simulation frame index for a run that never opens it. Video only. |
+| `MELEE_CAPTURE_ENCODER=<name>` | Video encoder for `MELEE_CAPTURE`. Default `h264_videotoolbox` on macOS, `libx264` elsewhere. `libx264` uses `-preset veryfast -crf 18` and encodes deterministically, so identical frames give an identical file; the game's own rendering is not bit-stable run to run, so two captures of one replay still differ. |
+| `MELEE_CAPTURE_BITRATE=<rate>` | `-b:v` for the bitrate-based encoders (default `40M`). |
+| `MELEE_CAPTURE_FFMPEG=<path>` | The `ffmpeg` binary (default `ffmpeg`, resolved through `PATH`). |
 | `--no-card` | Boot without a memory card. |
 | `--dvd <image>` | Explicit form of the positional disc argument. |
 | `--version` | Print the build version and exit. |

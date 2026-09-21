@@ -1,13 +1,18 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "debug_ui.h"
 
+#include <aurora/aurora.h>
 #include <aurora/overlay.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_video.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 typedef struct DebugUi DebugUi;
 
@@ -47,14 +52,29 @@ bool debug_ui_captures_pad(const DebugUi* ui);
 void debug_ui_event(const DebugUi* ui, const DebugUiEvent* event);
 void debug_ui_run(const DebugUi* ui, float width_points, float height_points, float pixels_per_point);
 void debug_ui_paint(const AuroraOverlayFrame* frame, void* user);
+void debug_ui_capture_record(const AuroraCaptureFrame* frame, void* user);
+void debug_ui_capture_submitted(void* user);
+bool debug_ui_capture_should_wait(const DebugUi* ui);
+bool debug_ui_capture_draining(const DebugUi* ui);
+bool debug_ui_capture_active(const DebugUi* ui);
+bool debug_ui_capture_started(const DebugUi* ui);
+void debug_ui_capture_stalled(const DebugUi* ui, uint32_t waited_ms);
+void debug_ui_capture_finish(const DebugUi* ui);
+
+#define CAPTURE_DRAIN_PUMPS 2000
+#define CAPTURE_WAIT_TIMEOUT_MS 10000
 
 static DebugUi* s_ui;
 static SDL_Window* s_window;
 
 void pc_debug_ui_init(SDL_Window* window) {
+#ifndef _WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
     s_window = window;
     s_ui = debug_ui_create();
     aurora_set_overlay_callback(debug_ui_paint, s_ui);
+    aurora_set_capture_callback(debug_ui_capture_record, debug_ui_capture_submitted, s_ui);
     if (getenv("MELEE_DEBUG_UI_OPEN") != NULL) {
         debug_ui_toggle(s_ui);
     }
@@ -166,6 +186,18 @@ void pc_debug_ui_event(const SDL_Event* e) {
 }
 
 void pc_debug_ui_update(void) {
+    if (debug_ui_capture_should_wait(s_ui)) {
+        const Uint64 start = SDL_GetTicks();
+        Uint64 waited = 0;
+        while (debug_ui_capture_should_wait(s_ui)) {
+            aurora_pump_gpu_events();
+            waited = SDL_GetTicks() - start;
+            if (waited >= CAPTURE_WAIT_TIMEOUT_MS) {
+                debug_ui_capture_stalled(s_ui, (uint32_t)waited);
+                break;
+            }
+        }
+    }
     int width = 0;
     int height = 0;
     int pixel_width = 0;
@@ -178,4 +210,25 @@ void pc_debug_ui_update(void) {
 
 bool pc_debug_ui_captures_pad(void) {
     return debug_ui_captures_pad(s_ui);
+}
+
+bool pc_debug_ui_capture_active(void) {
+    return debug_ui_capture_active(s_ui);
+}
+
+void pc_debug_ui_capture_finish(void) {
+    if (s_ui == NULL) {
+        return;
+    }
+    if (debug_ui_capture_started(s_ui)) {
+        aurora_gpu_synchronize();
+        for (int i = 0; i < CAPTURE_DRAIN_PUMPS && debug_ui_capture_draining(s_ui); ++i) {
+            aurora_pump_gpu_events();
+        }
+        if (debug_ui_capture_draining(s_ui)) {
+            fprintf(stderr, "capture: readbacks still pending after %d pumps, the file is short\n",
+                CAPTURE_DRAIN_PUMPS);
+        }
+    }
+    debug_ui_capture_finish(s_ui);
 }

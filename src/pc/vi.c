@@ -188,7 +188,9 @@ void pc_frame_boundary(void) {
     static u64 next_sim_ns;
     const u64 sim_period = pc_sim_period_ns();
     u64 now = SDL_GetTicksNS();
-    if (next_sim_ns == 0 || now > next_sim_ns + sim_period * 2) {
+    if (pc_debug_ui_capture_active() && !pc_menu_is_open()) {
+        next_sim_ns = now;
+    } else if (next_sim_ns == 0 || now > next_sim_ns + sim_period * 2) {
         next_sim_ns = now; /* first frame, or large hitch: resync */
     } else if (now < next_sim_ns) {
         const u64 want = next_sim_ns - now;

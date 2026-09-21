@@ -1,3 +1,4 @@
+mod capture;
 mod events;
 mod game;
 mod gpu;
@@ -13,6 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use egui::{RawInput, Rect, pos2};
 
+use crate::capture::{Capture, CaptureFrame};
 use crate::events::{Envelope, Event, Tracker};
 use crate::gpu::{WGPUDevice, WGPUQueue, WGPURenderPassEncoder, WGPUTextureFormat};
 use crate::input::{InputEvent, NavAction, RawEvent, key_tap};
@@ -142,6 +144,7 @@ pub struct DebugUi {
     game: Mutex<GameSide>,
     pending: Mutex<Option<Frame>>,
     render: Mutex<RenderSide>,
+    capture: Capture,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -269,6 +272,7 @@ pub extern "C" fn debug_ui_create() -> *mut DebugUi {
         .and_then(Telemetry::connect);
     Box::into_raw(Box::new(DebugUi {
         telemetry: Mutex::new(telemetry),
+        capture: Capture::from_env(),
         ..DebugUi::default()
     }))
 }
@@ -350,6 +354,73 @@ pub unsafe extern "C" fn debug_ui_paint(frame: *const OverlayFrame, user: *mut c
         width: frame.width,
         height: frame.height,
     });
+}
+
+/// # Safety
+/// Matches `AuroraCaptureCallback`; `user` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_record(frame: *const CaptureFrame, user: *mut c_void) {
+    let (Some(frame), Some(ui)) = (unsafe { frame.as_ref() }, unsafe {
+        user.cast::<DebugUi>().as_ref()
+    }) else {
+        return;
+    };
+    unsafe { ui.capture.record(frame) };
+}
+
+/// # Safety
+/// Matches `AuroraCaptureSubmittedCallback`; `user` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_submitted(user: *mut c_void) {
+    if let Some(ui) = unsafe { user.cast::<DebugUi>().as_ref() } {
+        ui.capture.submitted();
+    }
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_should_wait(ui: *const DebugUi) -> bool {
+    unsafe { ui.as_ref() }.is_some_and(|ui| ui.capture.should_wait())
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_draining(ui: *const DebugUi) -> bool {
+    unsafe { ui.as_ref() }.is_some_and(|ui| ui.capture.draining())
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_active(ui: *const DebugUi) -> bool {
+    unsafe { ui.as_ref() }.is_some_and(|ui| ui.capture.active())
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_started(ui: *const DebugUi) -> bool {
+    unsafe { ui.as_ref() }.is_some_and(|ui| ui.capture.has_started())
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_stalled(ui: *const DebugUi, waited_ms: u32) {
+    if let Some(ui) = unsafe { ui.as_ref() } {
+        ui.capture.stalled(waited_ms);
+    }
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`. Call once, before the device is torn down.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_finish(ui: *const DebugUi) {
+    if let Some(ui) = unsafe { ui.as_ref() } {
+        ui.capture.finish();
+    }
 }
 
 #[cfg(test)]

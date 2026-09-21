@@ -297,6 +297,7 @@ static void pc_shutdown_once(void) {
         return;
     }
     done = true;
+    pc_debug_ui_capture_finish();
     /* Stop producers before joining DMA and destroying platform resources.
      * An unjoined ARQ worker aborts in std::thread's static destructor. */
     pc_input_poll_shutdown();
@@ -518,6 +519,7 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
          * compositors stop scanning out a FifoRelaxed surface and the window
          * then sits on a stale frame while the game runs on. */
         .vsync = !(getenv("MELEE_VSYNC") && getenv("MELEE_VSYNC")[0] == '0'),
+        .captureReadback = getenv("MELEE_CAPTURE") != NULL,
 #if defined(__ANDROID__)
         .logLevel = LOG_DEBUG,
 #else
@@ -534,6 +536,9 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
      * hidapi hint so SDL's rescaling driver leaves it for our raw path. */
     pc_gcadapter_init();
     pc_launcher_configure(&config);
+    if (config.captureReadback) {
+        config.vsync = false;
+    }
 
     const AuroraInfo info = aurora_initialize(argc, argv, &config);
 

@@ -15,6 +15,8 @@ void pc_debug_ui_init(struct SDL_Window* window);
 void pc_debug_ui_event(const union SDL_Event* e);
 void pc_debug_ui_update(void);
 bool pc_debug_ui_captures_pad(void);
+void pc_debug_ui_capture_finish(void);
+bool pc_debug_ui_capture_active(void);
 
 #ifdef __cplusplus
 }

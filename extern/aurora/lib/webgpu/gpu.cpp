@@ -1095,6 +1095,10 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
   auto surfaceFormat = best_surface_format();
   g_vsyncEnabled.store(g_config.vsync, std::memory_order_release);
   auto presentMode = select_present_mode(g_surfaceCapabilities);
+  const bool captureCopySrc = g_config.captureReadback && (g_surfaceCapabilities.usages & wgpu::TextureUsage::CopySrc);
+  if (g_config.captureReadback && !captureCopySrc) {
+    Log.warn("Surface does not support CopySrc; frame capture is unavailable");
+  }
   Log.info("Using surface format {}, present mode {}", magic_enum::enum_name(surfaceFormat),
            magic_enum::enum_name(presentMode));
   const auto size = window::get_window_size();
@@ -1102,7 +1106,8 @@ bool initialize(AuroraBackend auroraBackend, bool allowCpu) {
       .surfaceConfiguration =
           wgpu::SurfaceConfiguration{
               .format = surfaceFormat,
-              .usage = wgpu::TextureUsage::RenderAttachment,
+              .usage = wgpu::TextureUsage::RenderAttachment |
+                       (captureCopySrc ? wgpu::TextureUsage::CopySrc : wgpu::TextureUsage::None),
               .width = size.native_fb_width,
               .height = size.native_fb_height,
               .presentMode = presentMode,

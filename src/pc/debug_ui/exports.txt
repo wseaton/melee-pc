@@ -6,3 +6,11 @@ _debug_ui_paint
 _debug_ui_toggle_pad_capture
 _debug_ui_captures_pad
 _debug_ui_toggle_overlays
+_debug_ui_capture_record
+_debug_ui_capture_submitted
+_debug_ui_capture_should_wait
+_debug_ui_capture_draining
+_debug_ui_capture_active
+_debug_ui_capture_started
+_debug_ui_capture_stalled
+_debug_ui_capture_finish

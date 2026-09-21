@@ -42,6 +42,7 @@ void end_frame(EndFrameCallback callback);
 uint32_t current_frame() noexcept;
 void after_submit() noexcept;
 void gpu_synchronize();
+void pump_gpu_events();
 void after_present() noexcept;
 float calculate_fps() noexcept;
 } // namespace aurora::gfx

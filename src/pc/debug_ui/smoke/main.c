@@ -112,7 +112,8 @@ int main(int argc, char* argv[]) {
         .appName = "debug-ui-smoke",
         .windowWidth = 960,
         .windowHeight = 720,
-        .vsync = true,
+        .vsync = getenv("MELEE_CAPTURE") == NULL,
+        .captureReadback = getenv("MELEE_CAPTURE") != NULL,
     };
     const AuroraInfo info = aurora_initialize(argc, argv, &config);
     pc_debug_ui_init(info.window);
@@ -127,6 +128,7 @@ int main(int argc, char* argv[]) {
         const AuroraEvent* event = aurora_update();
         for (; event != NULL && event->type != AURORA_NONE; ++event) {
             if (event->type == AURORA_EXIT) {
+                pc_debug_ui_capture_finish();
                 aurora_shutdown();
                 return 0;
             }
@@ -148,6 +150,7 @@ int main(int argc, char* argv[]) {
     }
     printf("debug-ui-smoke: rendered %d frames, sim_hz=%u, captures_pad=%d\n", frames, s_sim_hz,
            pc_debug_ui_captures_pad());
+    pc_debug_ui_capture_finish();
     aurora_shutdown();
     return 0;
 }

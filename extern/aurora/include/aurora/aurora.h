@@ -95,6 +95,11 @@ typedef struct {
   bool pauseOnFocusLost;
   bool allowTextureDumps;
   bool allowCpuAdapter;
+  /**
+   * Requests CopySrc on the surface texture so the presented frame can be read back.
+   * Must be set before aurora_initialize; it is ignored if the surface does not support it.
+   */
+  bool captureReadback;
   int32_t windowPosX;
   int32_t windowPosY;
   uint32_t windowWidth;
@@ -139,6 +144,10 @@ void aurora_shutdown();
 const AuroraEvent* aurora_update();
 bool aurora_begin_frame();
 void aurora_end_frame();
+/** Drains the render worker, so every enqueued frame has been recorded and submitted. */
+void aurora_gpu_synchronize(void);
+/** Delivers queued WebGPU callbacks from a non-render thread; sleeps 1ms. */
+void aurora_pump_gpu_events(void);
 
 void aurora_set_log_level(AuroraLogLevel level);
 void aurora_set_pause_on_focus_lost(bool value);
