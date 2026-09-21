@@ -115,6 +115,11 @@ hrc-events movie character="15" frames="0": build _disc
 replay-events movie frames="0": build _disc
     {{quiet}} MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
 
+# wait for a Home Run Contest result and act on one ticket labeled melee-demo in <project>;
+# dry-run unless `--live` is passed. Run this first, then `just hrc-events <movie>` or play with MELEE_EVENTS_ADDR set
+sidecar project *args:
+    cargo run --release -p melee-sidecar -- --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}}
+
 # listen for NDJSON match events and pretty-print them
 events:
     nc -l 127.0.0.1 {{events_port}}
