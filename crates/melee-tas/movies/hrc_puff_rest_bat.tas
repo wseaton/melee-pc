@@ -1,0 +1,41 @@
+# Home Run Contest: Jigglypuff fetches the bat, hops over Sandbag, short hops
+# backwards into it and Rests from the right side. From that side the bag is
+# sent left, comes back and stays on the platform with 28%. She wakes up with
+# the bat still in hand and forward smashes it. Roughly 560 ft.
+# Run with MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15, or `just hrc-demo`.
+seed 0x00000001
+ports 1
+
+# The match loads and GO lands near frame 84.
+wait 100
+
+# Walk to the bat. A dash runs her off the left edge (x = -40), and she spends
+# the first 12 frames turning around. She stops at x = -38.9.
+p1 stick -60,0 x40
+wait 8
+p1 A x2
+wait 16
+
+# Full hop over the bag, landing at x = 14 facing right, so the bag is behind her.
+p1 X stick 127,0 x10
+p1 stick 127,0 x22
+wait 20
+
+# Reverse short hop Rest: X held 2 frames is inside the 5 frame jumpsquat.
+# It connects at frame 228. The Rest has to come first: at 14% the bag bounces
+# back too hard and leaves the platform.
+p1 X stick -127,0 x2
+p1 stick -127,0 x6
+p1 B stick 0,-127 x3
+
+# Asleep at x = -4. The bag settles at x = 28.9 by frame 435. Input before
+# frame 487 is eaten.
+wait 258
+
+# Walk into tip range and swing. The bat smash is not chargeable. Hit at 541.
+p1 stick 60,0 x22
+wait 4
+p1 A stick 127,0 x3
+
+# Flight, landing and the result.
+wait 560

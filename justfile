@@ -7,6 +7,8 @@ movies := "crates/melee-tas/movies"
 disc := env_var_or_default("MELEE_DISC", "")
 events_port := "7788"
 quiet := "MELEE_MUTE=1"
+size := "1920x1080"
+hrc_movie := "hrc_puff_rest_bat"
 
 export DAWN_INCLUDE_DIR := justfile_directory() / build_dir / "_deps/dawn_prebuilt-src/include"
 
@@ -100,12 +102,12 @@ hrc character="15" *args: build _disc
 
 # render a Home Run Contest movie to build/captures/<stem>.mp4, muted
 hrc-render movie character="15" frames="0": build _disc _out
-    {{quiet}} MELEE_CAPTURE={{out_dir}}/{{file_stem(movie)}}.mp4 MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_WINDOW_SIZE={{size}} MELEE_CAPTURE={{out_dir}}/{{file_stem(movie)}}.mp4 MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
     just probe {{out_dir}}/{{file_stem(movie)}}.mp4
 
-# compile the bundled Jigglypuff Rest movie and render it to video
-hrc-demo: (tas movies / "hrc_puff_rest.tas")
-    just hrc-render {{out_dir}}/hrc_puff_rest.mrc 15 760
+# compile a bundled Home Run Contest movie and render it to video, e.g. `just hrc-demo hrc_puff_rest 800`
+hrc-demo movie=hrc_movie frames="1150": (tas movies / movie + ".tas")
+    just hrc-render {{out_dir}}/{{movie}}.mrc 15 {{frames}}
 
 # replay a Home Run Contest movie and write player positions to build/captures/<stem>.csv
 hrc-trace movie character="15" frames="0": build _disc _out
@@ -123,15 +125,15 @@ replay-events movie frames="0": build _disc
 sidecar project *args:
     cargo run --release -p melee-sidecar -- --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}}
 
-# the whole bit: sidecar, the Rest movie, and a video of it; extra args go to the sidecar, e.g. `just hrc-jira INFERENG --done-status Closed --live`
-hrc-jira project *args: build _disc _out (tas movies / "hrc_puff_rest.tas")
+# the whole bit: sidecar, the bundled movie, and a video of it; extra args go to the sidecar, e.g. `just hrc-jira INFERENG --done-status Closed --live`
+hrc-jira project *args: build _disc _out (tas movies / hrc_movie + ".tas")
     #!/usr/bin/env bash
     set -euo pipefail
     cargo build --release -p melee-sidecar
     target/release/melee-sidecar --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}} &
     sidecar=$!
     until lsof -nP -iTCP:{{events_port}} -sTCP:LISTEN >/dev/null 2>&1; do kill -0 $sidecar; sleep 0.2; done
-    {{quiet}} MELEE_CAPTURE={{out_dir}}/hrc_jira.mp4 MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{out_dir}}/hrc_puff_rest.mrc MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15 MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES=1000 {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_WINDOW_SIZE={{size}} MELEE_CAPTURE={{out_dir}}/hrc_jira.mp4 MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{out_dir}}/{{hrc_movie}}.mrc MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15 MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES=1300 {{build_dir}}/melee --no-card "{{disc}}"
     wait $sidecar
 
 # listen for NDJSON match events and pretty-print them
