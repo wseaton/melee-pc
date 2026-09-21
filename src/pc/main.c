@@ -23,6 +23,7 @@
 
 #include "pc/pc.h"
 #include "pc/launcher.h"
+#include "pc/debug_ui.h"
 
 int melee_main(void);
 
@@ -640,6 +641,7 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
         return launched == 0 ? 0 : 1;
 
     pc_menu_init(info.window);
+    pc_debug_ui_init(info.window);
     pc_platform_init();
     aurora_card_set_present(card);
     int rc = melee_main();

@@ -1,0 +1,8 @@
+_debug_ui_create
+_debug_ui_toggle
+_debug_ui_event
+_debug_ui_run
+_debug_ui_paint
+_debug_ui_toggle_pad_capture
+_debug_ui_captures_pad
+_debug_ui_toggle_overlays

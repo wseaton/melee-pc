@@ -21,6 +21,8 @@ void pc_platform_init(void);
 void pc_frame_boundary(void);
 /* Simulation frame period the boundary paces to (60.000 Hz), src/pc/vi.c. */
 uint64_t pc_sim_period_ns(void);
+uint32_t pc_get_sim_hz(void);
+void pc_set_sim_hz(uint32_t hz);
 
 /* Append a line to the diagnostic log (src/pc/main.c), so frame stalls
  * interleave with aurora's own records and can be attributed to whatever

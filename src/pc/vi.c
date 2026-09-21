@@ -9,6 +9,7 @@
 #include <aurora/event.h>
 #include <aurora/gfx.h>
 #include <dolphin/os.h>
+#include <dolphin/pad.h>
 #include <dolphin/vi.h>
 
 #include <SDL3/SDL_timer.h>
@@ -19,6 +20,7 @@
 
 #include "pc/pc.h"
 #include "pc/launcher.h"
+#include "pc/debug_ui.h"
 #include "pc/touch.h"
 #include "pc/widescreen.h"
 #include "pc/net.h"
@@ -147,12 +149,15 @@ void pc_frame_boundary(void) {
                 event->sdl.key.scancode == SDL_SCANCODE_F1 && !event->sdl.key.repeat)
                 pc_menu_toggle();
             pc_menu_event(&event->sdl);
+            pc_debug_ui_event(&event->sdl);
             pc_keyboard_event(&event->sdl);
             pc_touch_event(&event->sdl);
         }
         ++event;
     }
     pc_menu_update();
+    pc_debug_ui_update();
+    PADBlockInput(pc_debug_ui_captures_pad() || pc_menu_is_open());
     /* Nothing draws while the overlay pauses the game, so hold the last
      * frame instead of clearing the EFB to black underneath the menu. */
     aurora_preserve_frame_buffer(pc_menu_is_open());
@@ -245,8 +250,20 @@ u32 VIGetRetraceCount(void) {
     return s_retrace_count;
 }
 
+static u32 s_sim_hz = 60;
+
 u64 pc_sim_period_ns(void) {
-    return 1000000000ull / 60;
+    return 1000000000ull / s_sim_hz;
+}
+
+u32 pc_get_sim_hz(void) {
+    return s_sim_hz;
+}
+
+void pc_set_sim_hz(u32 hz) {
+    if (hz > 0) {
+        s_sim_hz = hz;
+    }
 }
 
 u32 VIGetNextField(void) {

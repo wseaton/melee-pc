@@ -162,6 +162,7 @@ endif ()
 # src/pc/vtxarray.c is deliberately absent - it belongs to melee_game.
 set(PC_SOURCES
         src/pc/audio.c
+        src/pc/debug_ui.c
         src/pc/disc_open.c
         src/pc/discfont.c
         src/pc/gcadapter.c
@@ -226,6 +227,44 @@ target_compile_options(melee PRIVATE
         $<$<BOOL:${ANDROID}>:-march=armv8-a+crc+crypto>
         $<$<BOOL:${ANDROID}>:-mtune=cortex-a73>)
 target_link_libraries(melee PRIVATE melee_game aurora::main ${MELEE_CRYPTO_LIBS} ${MELEE_NETWORK_LIBS})
+
+# ---- egui debug overlay (Rust) ---------------------------------------------
+include(FetchContent)
+FetchContent_Declare(Corrosion
+        GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+        GIT_TAG v0.6.1
+        GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(Corrosion)
+corrosion_import_crate(MANIFEST_PATH src/pc/debug_ui/Cargo.toml)
+if (TARGET dawn::dawn_public_config)
+    set(MELEE_DAWN_HEADER_TARGET dawn::dawn_public_config)
+else ()
+    set(MELEE_DAWN_HEADER_TARGET dawn::webgpu_dawn)
+endif ()
+get_target_property(MELEE_DAWN_INCLUDE_DIRS ${MELEE_DAWN_HEADER_TARGET} INTERFACE_INCLUDE_DIRECTORIES)
+if (NOT MELEE_DAWN_INCLUDE_DIRS)
+    message(FATAL_ERROR "debug ui: ${MELEE_DAWN_HEADER_TARGET} exposes no include directory for webgpu.h")
+endif ()
+list(GET MELEE_DAWN_INCLUDE_DIRS 0 MELEE_DAWN_INCLUDE_DIR)
+corrosion_set_env_vars(melee_debug_ui "DAWN_INCLUDE_DIR=${MELEE_DAWN_INCLUDE_DIR}")
+set(MELEE_DEBUG_UI_OBJECT "${CMAKE_BINARY_DIR}/melee_debug_ui_prelinked.o")
+add_custom_command(OUTPUT "${MELEE_DEBUG_UI_OBJECT}"
+        COMMAND "${CMAKE_CXX_COMPILER}" -r -nostdlib -Wl,-all_load
+                "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/src/pc/debug_ui/exports.txt"
+                "$<TARGET_FILE:melee_debug_ui-static>" -o "${MELEE_DEBUG_UI_OBJECT}"
+        DEPENDS "$<TARGET_FILE:melee_debug_ui-static>" src/pc/debug_ui/exports.txt
+        VERBATIM)
+set_source_files_properties("${MELEE_DEBUG_UI_OBJECT}" PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+target_sources(melee PRIVATE "${MELEE_DEBUG_UI_OBJECT}")
+add_dependencies(melee cargo-build_melee_debug_ui)
+
+add_executable(debug_ui_smoke EXCLUDE_FROM_ALL
+        src/pc/debug_ui/smoke/main.c
+        src/pc/debug_ui.c
+        "${MELEE_DEBUG_UI_OBJECT}")
+target_include_directories(debug_ui_smoke PRIVATE src)
+target_link_libraries(debug_ui_smoke PRIVATE aurora::core aurora::gx aurora::vi aurora::main)
+add_dependencies(debug_ui_smoke cargo-build_melee_debug_ui)
 
 if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(melee PRIVATE

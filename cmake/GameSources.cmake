@@ -46,5 +46,6 @@ else ()
 endif ()
 
 list(APPEND GAME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pc/vtxarray.c")
+list(APPEND GAME_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pc/debug_game.c")
 # PowerPC/MetroTRK debugger integration; no PC equivalent.
 list(FILTER GAME_SOURCES EXCLUDE REGEX "baselib/debugconsole_main\\.c$")
