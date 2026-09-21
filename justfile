@@ -7,6 +7,7 @@ movies := "crates/melee-tas/movies"
 disc := env_var_or_default("MELEE_DISC", "")
 events_port := "7788"
 quiet := "MELEE_MUTE=1"
+unlocked := "MELEE_UNLOCK_ALL=1"
 size := "1920x1080"
 hrc_movie := "hrc_puff_rest_bat"
 
@@ -63,13 +64,13 @@ smoke-capture frames="300": build-smoke _out
     MELEE_CAPTURE={{out_dir}}/smoke.mp4 {{build_dir}}/debug_ui_smoke {{frames}} overlays
     just probe {{out_dir}}/smoke.mp4
 
-# play the game normally; extra args go to the game, e.g. `just run --no-card`
+# play the game normally, everything unlocked; extra args go to the game, e.g. `just run --no-card`
 run *args: build _disc
-    {{build_dir}}/melee {{args}} "{{disc}}"
+    {{unlocked}} {{build_dir}}/melee {{args}} "{{disc}}"
 
 # play with the HUD overlays on (F3 toggles them, F2 opens the debug window)
 run-hud *args: build _disc
-    MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} "{{disc}}"
+    {{unlocked}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} "{{disc}}"
 
 # play while recording inputs to build/captures/<name>.mrc
 record name="session": build _disc _out

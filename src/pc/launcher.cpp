@@ -296,7 +296,9 @@ class Launcher final : public Rml::EventListener {
         text("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         text("free-camera", prefs.free_camera ? "Free" : "Normal");
         text("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
-        text("unlock-all", prefs.unlock_all ? "Unlocked" : "Normal");
+        text("unlock-all", std::getenv("MELEE_UNLOCK_ALL") ? "Environment override"
+                           : prefs.unlock_all                ? "Unlocked"
+                                                             : "Normal");
         text("backend", backend_name(prefs.backend));
         slider("volume", prefs.volume * 100.0f);
         text("volume-val", std::to_string(int(prefs.volume * 100 + 0.5f)) + "%");
@@ -1218,7 +1220,9 @@ public:
         label("frozen-stadium", prefs.frozen_stadium ? "Hazardless" : "Normal");
         label("free-camera", prefs.free_camera ? "Free" : "Normal");
         label("ucf", std::getenv("MELEE_UCF") ? "Environment override" : prefs.ucf ? "On" : "Off");
-        label("unlock-all", prefs.unlock_all ? "Unlocked" : "Normal");
+        label("unlock-all", std::getenv("MELEE_UNLOCK_ALL") ? "Environment override"
+                           : prefs.unlock_all                ? "Unlocked"
+                                                             : "Normal");
         label("backend", backend_name(prefs.backend));
         slider("volume", prefs.volume * 100.0f);
         label("volume-val", std::to_string(int(prefs.volume * 100 + 0.5f)) + "%");
@@ -1663,8 +1667,12 @@ extern "C" bool pc_is_custom_textures_enabled(void) {
 }
 extern "C" bool pc_net_rules(bool* unlock_all, bool* frozen_stadium);
 extern "C" bool pc_is_unlock_all_enabled(void) {
+    static const char* env = std::getenv("MELEE_UNLOCK_ALL");
     bool unlock_all, frozen;
-    return pc_net_rules(&unlock_all, &frozen) ? unlock_all : prefs.unlock_all;
+    if (pc_net_rules(&unlock_all, &frozen)) {
+        return unlock_all;
+    }
+    return env ? env[0] != '0' : prefs.unlock_all;
 }
 extern "C" bool pc_is_frozen_stadium_enabled(void) {
     bool unlock_all, frozen;
