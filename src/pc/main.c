@@ -436,6 +436,23 @@ static void pc_env_file_bootstrap(void) {
     }
 }
 
+static void pc_window_size_from_env(AuroraConfig* config) {
+    const char* want = getenv("MELEE_WINDOW_SIZE");
+    unsigned width = 0;
+    unsigned height = 0;
+    char trailing = 0;
+    if (want == NULL || want[0] == '\0') {
+        return;
+    }
+    if (sscanf(want, "%ux%u%c", &width, &height, &trailing) != 2 || width < 320 || height < 240 ||
+        width > 7680 || height > 4320) {
+        fprintf(stderr, "MELEE_WINDOW_SIZE: '%s' is not WIDTHxHEIGHT between 320x240 and 7680x4320\n", want);
+        return;
+    }
+    config->windowWidth = width;
+    config->windowHeight = height;
+}
+
 MELEE_EXPORT int main(int argc, char* argv[]) {
     melee_install_crash_handler(); /* before anything can crash */
     pc_env_file_bootstrap();       /* before anything calls getenv() */
@@ -536,6 +553,7 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
      * hidapi hint so SDL's rescaling driver leaves it for our raw path. */
     pc_gcadapter_init();
     pc_launcher_configure(&config);
+    pc_window_size_from_env(&config);
     if (config.captureReadback) {
         config.vsync = false;
     }
