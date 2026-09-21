@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::distance::Centimeters;
 use crate::ids::{Character, GameMode, PlayerKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +17,7 @@ pub enum Event {
     ModeChange { from: GameMode, to: GameMode },
     SceneChange { from: u8, to: u8 },
     MatchStart { players: Vec<PlayerInfo> },
+    HomeRunResult { distance: Centimeters },
     MatchEnd,
     Damage { player: u8, from: i32, to: i32 },
     StockLost { player: u8, stocks: i32 },
@@ -35,7 +37,7 @@ pub struct Envelope {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Character, Envelope, Event, GameMode, PlayerInfo, PlayerKind};
+    use crate::{Centimeters, Character, Envelope, Event, GameMode, PlayerInfo, PlayerKind};
 
     fn every_event() -> Vec<Event> {
         vec![
@@ -59,6 +61,9 @@ mod tests {
                         stocks: 1,
                     },
                 ],
+            },
+            Event::HomeRunResult {
+                distance: Centimeters(4720),
             },
             Event::MatchEnd,
             Event::Damage {
@@ -137,6 +142,15 @@ mod tests {
             line,
             r#"{"type":"mode_change","from":"menu","to":"home_run_contest"}"#
         );
+    }
+
+    #[test]
+    fn a_home_run_result_carries_centimeters() {
+        let line = serde_json::to_string(&Event::HomeRunResult {
+            distance: Centimeters(4720),
+        })
+        .unwrap();
+        assert_eq!(line, r#"{"type":"home_run_result","distance":4720}"#);
     }
 
     #[test]

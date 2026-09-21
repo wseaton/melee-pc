@@ -6,7 +6,7 @@ use egui::{
     StrokeKind, Vec2, pos2, vec2,
 };
 
-use melee_events::{Event, GameMode};
+use melee_events::{Centimeters, Event, GameMode};
 
 use crate::game::{PLAYER_SLOTS, PadButton, PadView};
 
@@ -17,6 +17,9 @@ const FEED_FADE_OUT: u64 = 45;
 const COMBO_WINDOW: u64 = 90;
 
 const MARGIN: f32 = 16.0;
+const FEED_TOP: f32 = MARGIN + 46.0;
+const HRC_FEED_TOP: f32 = 225.0;
+const HOME_RUN_GOLD: Color32 = Color32::from_rgb(255, 196, 64);
 const PANEL_RADIUS: u8 = 10;
 const PANEL_FILL: Color32 = Color32::from_rgba_premultiplied(9, 11, 16, 200);
 const PANEL_EDGE: Color32 = Color32::from_rgba_premultiplied(40, 44, 54, 120);
@@ -48,6 +51,9 @@ fn port_color(player: u8) -> Color32 {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FeedKind {
     Banner(&'static str),
+    HomeRun {
+        distance: Centimeters,
+    },
     Ko {
         killer: u8,
         victim: u8,
@@ -81,6 +87,10 @@ pub fn feed_alpha(age: u64) -> f32 {
     }
 }
 
+pub fn home_run_label(distance: Centimeters) -> String {
+    format!("HOME RUN  {} FT", distance.feet_as_displayed())
+}
+
 pub fn match_clock(frames: u64) -> String {
     let centis = frames % 60 * 100 / 60;
     let seconds = frames / 60;
@@ -112,6 +122,7 @@ impl Hud {
                 self.falls = [0; PLAYER_SLOTS];
                 FeedKind::Banner("MATCH START")
             }
+            Event::HomeRunResult { distance } => FeedKind::HomeRun { distance },
             Event::MatchEnd => {
                 self.match_ended = Some(frame);
                 FeedKind::Banner("MATCH END")
@@ -265,10 +276,18 @@ impl Hud {
         }
     }
 
+    fn feed_top(&self) -> f32 {
+        if self.mode == GameMode::HomeRunContest {
+            HRC_FEED_TOP
+        } else {
+            FEED_TOP
+        }
+    }
+
     fn draw_feed(&self, painter: &Painter, screen: Rect, frame: u64) {
         let width = 236.0;
         let row = 30.0;
-        let mut y = screen.top() + MARGIN + 46.0;
+        let mut y = screen.top() + self.feed_top();
         for entry in &self.feed {
             let age = frame.saturating_sub(entry.born);
             let alpha = feed_alpha(age);
@@ -291,6 +310,16 @@ impl Hud {
                         text,
                         FontId::proportional(12.0),
                         fade(TEXT, alpha),
+                    );
+                }
+                FeedKind::HomeRun { distance } => {
+                    accent(painter, rect, HOME_RUN_GOLD, alpha);
+                    painter.text(
+                        rect.center(),
+                        Align2::CENTER_CENTER,
+                        home_run_label(distance),
+                        FontId::proportional(13.0),
+                        fade(HOME_RUN_GOLD, alpha),
                     );
                 }
                 FeedKind::Ko { killer, victim } => {
@@ -635,11 +664,11 @@ fn dpad(painter: &Painter, center: Pos2, pad: &PadView) {
 
 #[cfg(test)]
 mod tests {
-    use melee_events::{Event, GameMode};
+    use melee_events::{Centimeters, Event, GameMode};
 
     use crate::overlay::{
-        FEED_CAPACITY, FEED_LIFETIME, FeedKind, Hud, PORT_COLORS, TEXT_DIM, damage_color,
-        feed_alpha, match_clock, port_color, slot_index,
+        FEED_CAPACITY, FEED_LIFETIME, FEED_TOP, FeedKind, HRC_FEED_TOP, Hud, PORT_COLORS, TEXT_DIM,
+        damage_color, feed_alpha, home_run_label, match_clock, port_color, slot_index,
     };
 
     #[test]
@@ -976,6 +1005,48 @@ mod tests {
         assert_eq!(hud.match_frames(1408), Some(600));
         hud.ingest(7795, &Event::MatchEnd);
         assert_eq!(hud.match_frames(9000), Some(6987));
+    }
+
+    #[test]
+    fn a_home_run_gets_a_feed_row_with_the_distance_in_feet() {
+        let mut hud = Hud::default();
+        hud.ingest(
+            742,
+            &Event::HomeRunResult {
+                distance: Centimeters(4720),
+            },
+        );
+        assert_eq!(hud.feed.len(), 1);
+        assert_eq!(
+            hud.feed[0].kind,
+            FeedKind::HomeRun {
+                distance: Centimeters(4720)
+            }
+        );
+        assert_eq!(hud.feed[0].born, 742);
+        assert_eq!(home_run_label(Centimeters(4720)), "HOME RUN  154.8 FT");
+    }
+
+    #[test]
+    fn the_feed_sits_below_the_distance_meter_in_home_run_contest() {
+        let mut hud = Hud::default();
+        assert_eq!(hud.feed_top(), FEED_TOP);
+        hud.ingest(
+            3,
+            &Event::ModeChange {
+                from: GameMode::Title,
+                to: GameMode::HomeRunContest,
+            },
+        );
+        assert_eq!(hud.feed_top(), HRC_FEED_TOP);
+        hud.ingest(
+            742,
+            &Event::ModeChange {
+                from: GameMode::HomeRunContest,
+                to: GameMode::Menu,
+            },
+        );
+        assert_eq!(hud.feed_top(), FEED_TOP);
     }
 
     #[test]

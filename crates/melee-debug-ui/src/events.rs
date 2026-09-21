@@ -1,4 +1,4 @@
-use melee_events::{Character, Event, GameMode, PlayerInfo, PlayerKind};
+use melee_events::{Centimeters, Character, Event, GameMode, PlayerInfo, PlayerKind};
 
 use crate::game::PLAYER_SLOTS;
 
@@ -15,6 +15,7 @@ pub struct PlayerSnapshot {
 pub struct Snapshot {
     pub mode: GameMode,
     pub scene: u8,
+    pub home_run: Option<Centimeters>,
     pub players: [Option<PlayerSnapshot>; PLAYER_SLOTS],
 }
 
@@ -72,7 +73,12 @@ impl Tracker {
             (false, true) => events.push(Event::MatchStart {
                 players: now.roster(),
             }),
-            (true, false) => events.push(Event::MatchEnd),
+            (true, false) => {
+                if let Some(distance) = before.home_run {
+                    events.push(Event::HomeRunResult { distance });
+                }
+                events.push(Event::MatchEnd);
+            }
             _ => {}
         }
         for (slot, pair) in before.players.iter().zip(&now.players).enumerate() {
@@ -113,7 +119,7 @@ impl Tracker {
 
 #[cfg(test)]
 mod tests {
-    use melee_events::{Character, Envelope, Event, GameMode, PlayerInfo, PlayerKind};
+    use melee_events::{Centimeters, Character, Envelope, Event, GameMode, PlayerInfo, PlayerKind};
 
     use crate::events::{PlayerSnapshot, Snapshot, Tracker};
 
@@ -346,6 +352,87 @@ mod tests {
             [Event::SceneChange { from: 2, to: 3 }, Event::MatchEnd]
         );
         assert_eq!(tracker.update(results), []);
+    }
+
+    fn home_run_contest(distance: i32) -> Snapshot {
+        let mut snapshot = Snapshot {
+            mode: GameMode::HomeRunContest,
+            scene: 1,
+            home_run: Some(Centimeters(distance)),
+            ..Snapshot::default()
+        };
+        snapshot.players[0] = Some(fighter(Character::Jigglypuff));
+        snapshot.players[1] = Some(PlayerSnapshot {
+            kind: PlayerKind::Cpu,
+            ..fighter(Character::Sandbag)
+        });
+        snapshot
+    }
+
+    #[test]
+    fn a_home_run_contest_reports_its_distance_before_the_match_end() {
+        let mut tracker = settled(home_run_contest(0));
+        assert_eq!(tracker.update(home_run_contest(1200)), []);
+        assert_eq!(tracker.update(home_run_contest(4720)), []);
+        let left = Snapshot {
+            mode: GameMode::HomeRunContest,
+            scene: 1,
+            home_run: Some(Centimeters(0)),
+            ..Snapshot::default()
+        };
+        assert_eq!(
+            tracker.update(left),
+            [
+                Event::HomeRunResult {
+                    distance: Centimeters(4720)
+                },
+                Event::MatchEnd
+            ]
+        );
+        assert_eq!(tracker.update(left), []);
+    }
+
+    #[test]
+    fn a_bag_that_never_left_the_platform_is_a_zero_distance_result() {
+        let mut tracker = settled(home_run_contest(0));
+        let left = Snapshot {
+            mode: GameMode::HomeRunContest,
+            scene: 1,
+            ..Snapshot::default()
+        };
+        assert_eq!(
+            tracker.update(left),
+            [
+                Event::HomeRunResult {
+                    distance: Centimeters(0)
+                },
+                Event::MatchEnd
+            ]
+        );
+    }
+
+    #[test]
+    fn a_distance_changing_mid_flight_is_not_an_event() {
+        let mut tracker = settled(home_run_contest(0));
+        for distance in [10, 500, 4000, 4720] {
+            assert_eq!(tracker.update(home_run_contest(distance)), []);
+        }
+    }
+
+    #[test]
+    fn a_match_outside_home_run_contest_has_no_result() {
+        let mut tracker = settled(duel());
+        let results = Snapshot {
+            scene: 3,
+            ..Snapshot::default()
+        };
+        let events = tracker.update(results);
+        assert!(events.contains(&Event::MatchEnd));
+        assert!(
+            !events
+                .iter()
+                .any(|event| matches!(event, Event::HomeRunResult { .. }))
+        );
     }
 
     #[test]

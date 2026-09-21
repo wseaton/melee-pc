@@ -1,6 +1,6 @@
 use std::ffi::c_int;
 
-use melee_events::{Character, GameMode, PlayerKind};
+use melee_events::{Centimeters, Character, GameMode, PlayerKind};
 
 use crate::events::{PlayerSnapshot, Snapshot};
 
@@ -28,6 +28,7 @@ unsafe extern "C" {
     fn Player_GetKOsByPlayerIndex(slot: c_int, idx: c_int) -> i32;
     fn gm_GetCurrentSceneIndex() -> u8;
     fn gm_GetCurrentGameMode() -> u8;
+    fn gm_80180AE4() -> i32;
     fn pc_get_sim_hz() -> u32;
     fn pc_set_sim_hz(hz: u32);
 }
@@ -169,9 +170,11 @@ pub fn kos(killer: Slot) -> [i32; PLAYER_SLOTS] {
 }
 
 pub fn snapshot() -> Snapshot {
+    let mode = GameMode::from_raw(i32::from(unsafe { gm_GetCurrentGameMode() }));
     let mut snapshot = Snapshot {
-        mode: GameMode::from_raw(i32::from(unsafe { gm_GetCurrentGameMode() })),
+        mode,
         scene: scene_index(),
+        home_run: (mode == GameMode::HomeRunContest).then(|| Centimeters(unsafe { gm_80180AE4() })),
         ..Snapshot::default()
     };
     for slot in Slot::all() {

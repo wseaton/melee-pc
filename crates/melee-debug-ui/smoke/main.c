@@ -78,6 +78,9 @@ void Player_LoadPlayerCoords(int32_t slot, Vec3* out) {
 uint8_t gm_GetCurrentGameMode(void) {
     return 2;
 }
+int32_t gm_80180AE4(void) {
+    return 0;
+}
 uint8_t gm_GetCurrentSceneIndex(void) {
     return 2;
 }
