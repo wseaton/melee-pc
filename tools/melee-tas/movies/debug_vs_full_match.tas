@@ -1,0 +1,382 @@
+# Full debug VS match: Link (this movie) against a CPU Mario, ended by the
+# pause quit combo. Run with MELEE_DEBUG_VS=cpu MELEE_NET_REPLAY=<compiled .mrc>.
+seed 0x00000001
+ports 1
+
+# Skip the opening movie, then Start on the title screen.
+wait 600
+p1 START x4
+wait 200
+p1 START x4
+
+# Match loads and counts down.
+wait 330
+
+# Blind offense: smash right, smash left, up smash, repeat.
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+p1 A stick 127,0 x3
+wait 37
+p1 A stick -127,0 x3
+wait 37
+p1 A stick 0,127 x3
+wait 27
+
+# Pause, then quit with L+R+A+Start.
+p1 START x3
+wait 40
+p1 L R A lt 255 rt 255 x10
+p1 L R A START lt 255 rt 255 x6
+wait 900
