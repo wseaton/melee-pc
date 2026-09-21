@@ -665,6 +665,9 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
 
     pc_menu_init(info.window);
     pc_debug_ui_init(info.window);
+    if (config.captureReadback) {
+        pc_audio_set_sim_sink(pc_debug_ui_capture_audio, NULL);
+    }
     pc_platform_init();
     aurora_card_set_present(card);
     int rc = melee_main();

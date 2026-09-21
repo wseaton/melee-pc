@@ -720,11 +720,44 @@ static void render_frame(float* out) {
 /* MELEE_AUDIO_DUMP=<file>: also write the mix as raw f32 stereo 32kHz. */
 static FILE* s_dump;
 
+static PcAudioSimSink s_sim_sink;
+static void* s_sim_sink_user;
+static bool s_sim_driven;
+static u64 s_sim_debt;
+
+void pc_audio_set_sim_sink(PcAudioSimSink sink, void* user) {
+    audio_lock();
+    s_sim_sink = sink;
+    s_sim_sink_user = user;
+    s_sim_driven = sink != NULL;
+    s_sim_debt = 0;
+    audio_unlock();
+}
+
+void pc_audio_sim_frame(u32 sim_hz) {
+    static float frame[AX_FRAME * 2];
+    if (!s_sim_driven || sim_hz == 0) {
+        return;
+    }
+    s_sim_debt += AX_RATE;
+    while (s_sim_debt >= (u64)AX_FRAME * sim_hz) {
+        s_sim_debt -= (u64)AX_FRAME * sim_hz;
+        render_frame(frame);
+        s_sim_sink(frame, AX_FRAME, s_sim_sink_user);
+    }
+}
+
 static void SDLCALL audio_pull(void* userdata, SDL_AudioStream* stream, int additional, int total) {
     static float frame[AX_FRAME * 2];
     (void)userdata;
     (void)total;
     while (additional > 0) {
+        if (s_sim_driven) {
+            memset(frame, 0, sizeof(frame));
+            SDL_PutAudioStreamData(stream, frame, sizeof(frame));
+            additional -= (int)sizeof(frame);
+            continue;
+        }
         render_frame(frame);
         SDL_PutAudioStreamData(stream, frame, sizeof(frame));
         if (s_dump) {

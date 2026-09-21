@@ -1,3 +1,4 @@
+mod audio;
 mod capture;
 mod events;
 mod game;
@@ -445,6 +446,25 @@ pub unsafe extern "C" fn debug_ui_capture_stalled(ui: *const DebugUi, waited_ms:
     if let Some(ui) = unsafe { ui.as_ref() } {
         ui.capture.stalled(waited_ms);
     }
+}
+
+/// # Safety
+/// `ui` must be null or come from `debug_ui_create`, and `samples` must point at
+/// `frames` interleaved stereo sample frames.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn debug_ui_capture_audio(
+    ui: *const DebugUi,
+    samples: *const f32,
+    frames: usize,
+) {
+    let Some(ui) = (unsafe { ui.as_ref() }) else {
+        return;
+    };
+    if samples.is_null() || frames == 0 {
+        return;
+    }
+    let samples = unsafe { std::slice::from_raw_parts(samples, frames * audio::CHANNELS) };
+    ui.capture.audio(samples);
 }
 
 /// # Safety

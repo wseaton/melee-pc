@@ -3,6 +3,7 @@
 #define PC_PC_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -107,6 +108,9 @@ const char* pc_app_rev(void);
 
 /* Audio volume control */
 void pc_audio_set_volume(float volume);
+typedef void (*PcAudioSimSink)(const float* samples, size_t frames, void* user);
+void pc_audio_set_sim_sink(PcAudioSimSink sink, void* user);
+void pc_audio_sim_frame(uint32_t sim_hz);
 void pc_audio_set_music_volume(float volume);
 void pc_audio_set_sfx_volume(float volume);
 float pc_audio_get_music_volume(void);

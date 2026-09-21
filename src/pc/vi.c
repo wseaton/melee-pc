@@ -157,6 +157,7 @@ void pc_frame_boundary(void) {
     }
     pc_menu_update();
     pc_debug_ui_update();
+    pc_audio_sim_frame(pc_get_sim_hz());
     PADBlockInput(pc_debug_ui_captures_pad() || pc_menu_is_open());
     /* Nothing draws while the overlay pauses the game, so hold the last
      * frame instead of clearing the EFB to black underneath the menu. */

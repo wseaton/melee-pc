@@ -7,6 +7,7 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
+use crate::audio::{self, AudioTrack};
 use crate::gpu::*;
 use crate::lock;
 
@@ -269,6 +270,7 @@ struct Running {
     ring: Vec<Slot>,
     writer: Writer,
     recorded: u64,
+    audio: Option<AudioTrack>,
 }
 
 struct Request {
@@ -484,6 +486,11 @@ impl Capture {
             spec.out.display(),
             spec.encoder.name()
         );
+        let audio = AudioTrack::create(audio::track_path(&spec.out))
+            .inspect_err(|error| {
+                eprintln!("capture: no audio track ({error}), recording video only")
+            })
+            .ok();
         self.pressure.started.store(true, Ordering::Release);
         Some(Running {
             source: Source::of(frame),
@@ -494,6 +501,7 @@ impl Capture {
             ring,
             writer,
             recorded: 0,
+            audio,
         })
     }
 
@@ -587,18 +595,40 @@ impl Capture {
         }
     }
 
+    pub fn audio(&self, samples: &[f32]) {
+        let mut state = lock(&self.state);
+        if state.finished || self.pressure.is_disabled() {
+            return;
+        }
+        let Some(running) = state.running.as_mut() else {
+            return;
+        };
+        let Some(track) = running.audio.as_mut() else {
+            return;
+        };
+        if let Err(error) = track.write(samples) {
+            eprintln!("capture: audio track failed ({error}), the rest is video only");
+            running.audio = None;
+        }
+    }
+
     pub fn finish(&self) {
-        let running = {
+        let (running, target) = {
             let mut state = lock(&self.state);
             if state.finished {
                 return;
             }
             state.finished = true;
-            state.running.take()
+            let target = state
+                .request
+                .as_ref()
+                .map(|request| (request.binary.clone(), request.out.clone()));
+            (state.running.take(), target)
         };
-        let Some(running) = running else {
+        let Some(mut running) = running else {
             return;
         };
+        let audio = running.audio.take();
         for slot in &running.ring {
             unsafe { wgpuBufferRelease(slot.buffer) };
         }
@@ -620,6 +650,25 @@ impl Capture {
                 "capture: read back {} frames but only {encoded} reached ffmpeg, the file is incomplete",
                 running.recorded
             );
+        }
+        let (Some(track), Some((binary, out))) = (audio, target) else {
+            return;
+        };
+        let seconds = track.seconds();
+        if track.frames() == 0 {
+            return;
+        }
+        match track
+            .finish()
+            .and_then(|path| audio::mux(&binary, &out, &path))
+        {
+            Ok(()) => eprintln!(
+                "capture: muxed {seconds:.2} s of audio into {}",
+                out.display()
+            ),
+            Err(error) => {
+                eprintln!("capture: cannot mux the audio ({error}), the file is video only")
+            }
         }
     }
 }

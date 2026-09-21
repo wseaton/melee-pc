@@ -60,6 +60,7 @@ bool debug_ui_capture_active(const DebugUi* ui);
 bool debug_ui_capture_started(const DebugUi* ui);
 void debug_ui_capture_stalled(const DebugUi* ui, uint32_t waited_ms);
 void debug_ui_capture_finish(const DebugUi* ui);
+void debug_ui_capture_audio(const DebugUi* ui, const float* samples, size_t frames);
 
 #define CAPTURE_DRAIN_PUMPS 2000
 #define CAPTURE_WAIT_TIMEOUT_MS 10000
@@ -210,6 +211,11 @@ void pc_debug_ui_update(void) {
 
 bool pc_debug_ui_captures_pad(void) {
     return debug_ui_captures_pad(s_ui);
+}
+
+void pc_debug_ui_capture_audio(const float* samples, size_t frames, void* user) {
+    (void)user;
+    debug_ui_capture_audio(s_ui, samples, frames);
 }
 
 bool pc_debug_ui_capture_active(void) {

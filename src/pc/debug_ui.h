@@ -3,6 +3,7 @@
 #define PC_DEBUG_UI_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +17,7 @@ void pc_debug_ui_event(const union SDL_Event* e);
 void pc_debug_ui_update(void);
 bool pc_debug_ui_captures_pad(void);
 void pc_debug_ui_capture_finish(void);
+void pc_debug_ui_capture_audio(const float* samples, size_t frames, void* user);
 bool pc_debug_ui_capture_active(void);
 
 #ifdef __cplusplus
