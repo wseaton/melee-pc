@@ -235,7 +235,7 @@ FetchContent_Declare(Corrosion
         GIT_TAG v0.6.1
         GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(Corrosion)
-corrosion_import_crate(MANIFEST_PATH src/pc/debug_ui/Cargo.toml)
+corrosion_import_crate(MANIFEST_PATH Cargo.toml CRATES melee-debug-ui)
 if (TARGET dawn::dawn_public_config)
     set(MELEE_DAWN_HEADER_TARGET dawn::dawn_public_config)
 else ()
@@ -250,16 +250,16 @@ corrosion_set_env_vars(melee_debug_ui "DAWN_INCLUDE_DIR=${MELEE_DAWN_INCLUDE_DIR
 set(MELEE_DEBUG_UI_OBJECT "${CMAKE_BINARY_DIR}/melee_debug_ui_prelinked.o")
 add_custom_command(OUTPUT "${MELEE_DEBUG_UI_OBJECT}"
         COMMAND "${CMAKE_CXX_COMPILER}" -r -nostdlib -Wl,-all_load
-                "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/src/pc/debug_ui/exports.txt"
+                "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/crates/melee-debug-ui/exports.txt"
                 "$<TARGET_FILE:melee_debug_ui-static>" -o "${MELEE_DEBUG_UI_OBJECT}"
-        DEPENDS "$<TARGET_FILE:melee_debug_ui-static>" src/pc/debug_ui/exports.txt
+        DEPENDS "$<TARGET_FILE:melee_debug_ui-static>" crates/melee-debug-ui/exports.txt
         VERBATIM)
 set_source_files_properties("${MELEE_DEBUG_UI_OBJECT}" PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 target_sources(melee PRIVATE "${MELEE_DEBUG_UI_OBJECT}")
 add_dependencies(melee cargo-build_melee_debug_ui)
 
 add_executable(debug_ui_smoke EXCLUDE_FROM_ALL
-        src/pc/debug_ui/smoke/main.c
+        crates/melee-debug-ui/smoke/main.c
         src/pc/debug_ui.c
         "${MELEE_DEBUG_UI_OBJECT}")
 target_include_directories(debug_ui_smoke PRIVATE src)

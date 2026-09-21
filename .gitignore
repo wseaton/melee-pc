@@ -50,3 +50,6 @@ Testing/
 
 # Local settings loaded by the justfile.
 .env
+
+# Cargo workspace build output
+/target

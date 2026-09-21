@@ -2,8 +2,8 @@ set dotenv-load := true
 
 build_dir := "build/macos"
 out_dir := "build/captures"
-ui_crate := "src/pc/debug_ui"
-tas_crate := "tools/melee-tas"
+tas := "target/release/melee-tas"
+movies := "crates/melee-tas/movies"
 disc := env_var_or_default("MELEE_DISC", "")
 events_port := "7788"
 
@@ -27,27 +27,23 @@ build-smoke:
 
 # build the melee-tas movie compiler
 build-tas:
-    cargo build --release --manifest-path {{tas_crate}}/Cargo.toml
+    cargo build --release -p melee-tas
 
-# format both Rust crates
+# format the Rust workspace
 fmt:
-    cargo fmt --manifest-path {{ui_crate}}/Cargo.toml
-    cargo fmt --manifest-path {{tas_crate}}/Cargo.toml
+    cargo fmt --all
 
-# clippy both Rust crates with the house flags
+# clippy the Rust workspace with the house flags
 lint:
-    cargo clippy --manifest-path {{ui_crate}}/Cargo.toml --all --benches --tests --examples --all-features -- -D warnings
-    cargo clippy --manifest-path {{tas_crate}}/Cargo.toml --all --benches --tests --examples --all-features -- -D warnings
+    cargo clippy --all --benches --tests --examples --all-features -- -D warnings
 
 # run unit tests; pass a filter to run a subset, e.g. `just test overlay`
 test filter="":
-    cargo test --manifest-path {{ui_crate}}/Cargo.toml {{filter}}
-    cargo test --manifest-path {{tas_crate}}/Cargo.toml {{filter}}
+    cargo test --workspace {{filter}}
 
-# fmt check, clippy and tests for both crates
+# fmt check, clippy and tests for the Rust workspace
 check:
-    cargo fmt --manifest-path {{ui_crate}}/Cargo.toml --check
-    cargo fmt --manifest-path {{tas_crate}}/Cargo.toml --check
+    cargo fmt --all --check
     just lint
     just test
 
@@ -78,11 +74,11 @@ record name="session": build _disc _out
 
 # compile a .tas script to build/captures/<stem>.mrc
 tas script: build-tas _out
-    {{tas_crate}}/target/release/melee-tas compile {{script}} {{out_dir}}/{{file_stem(script)}}.mrc
+    {{tas}} compile {{script}} {{out_dir}}/{{file_stem(script)}}.mrc
 
 # turn a recorded .mrc back into an editable .tas script
 untas movie: build-tas _out
-    {{tas_crate}}/target/release/melee-tas decompile {{movie}} {{out_dir}}/{{file_stem(movie)}}.tas
+    {{tas}} decompile {{movie}} {{out_dir}}/{{file_stem(movie)}}.tas
 
 # replay a .mrc movie with the HUD on; frames=0 runs until the window closes
 replay movie frames="0": build _disc
@@ -94,7 +90,7 @@ render movie frames="0": build _disc _out
     just probe {{out_dir}}/{{file_stem(movie)}}.mp4
 
 # compile the bundled full-match script and render it to video
-demo: (tas tas_crate / "movies/debug_vs_full_match.tas")
+demo: (tas movies / "debug_vs_full_match.tas")
     just render {{out_dir}}/debug_vs_full_match.mrc 8697
 
 # replay a movie while shipping match events to a local collector (run `just events` first)

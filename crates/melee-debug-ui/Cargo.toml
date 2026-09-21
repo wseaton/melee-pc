@@ -1,8 +1,9 @@
 [package]
-name = "melee_debug_ui"
-version = "0.1.0"
-edition = "2024"
-publish = false
+name = "melee-debug-ui"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["staticlib"]
@@ -10,8 +11,8 @@ crate-type = ["staticlib"]
 [dependencies]
 egui = { version = "0.36", default-features = false, features = ["default_fonts", "bytemuck"] }
 bytemuck = "1.25"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
 
 [build-dependencies]
 bindgen = "0.73"
