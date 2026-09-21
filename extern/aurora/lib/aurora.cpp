@@ -1,4 +1,5 @@
 #include <aurora/aurora.h>
+#include <aurora/overlay.h>
 #include <aurora/time.hpp>
 #include <cmath>
 
@@ -39,6 +40,12 @@ char g_gameName[4];
 
 namespace {
 constexpr Module Log{"aurora"};
+
+struct Overlay {
+  AuroraOverlayCallback callback = nullptr;
+  void* user = nullptr;
+};
+Overlay g_overlay;
 
 #ifdef AURORA_ENABLE_GX
 // GPU
@@ -337,7 +344,7 @@ void end_frame() noexcept {
   }
 #endif
 
-  gfx::end_frame([rmlBindGroup = std::move(rmlBindGroup), rmlOverlay, viewport,
+  gfx::end_frame([rmlBindGroup = std::move(rmlBindGroup), rmlOverlay, viewport, overlay = g_overlay,
                   imguiDrawData = std::move(imguiDrawData)](
                      wgpu::CommandEncoder& encoder, std::vector<gfx::AfterSubmitCallback> afterSubmitCallbacks) {
     wgpu::Texture currentTexture;
@@ -426,6 +433,17 @@ void end_frame() noexcept {
         pass.SetViewport(0.f, 0.f, static_cast<float>(webgpu::g_graphicsConfig.surfaceConfiguration.width),
                          static_cast<float>(webgpu::g_graphicsConfig.surfaceConfiguration.height), 0.f, 1.f);
         imgui::render(pass, imguiDrawData);
+        if (overlay.callback != nullptr) {
+          const AuroraOverlayFrame frame{
+              .device = g_device.Get(),
+              .queue = g_queue.Get(),
+              .pass = pass.Get(),
+              .format = static_cast<WGPUTextureFormat>(webgpu::g_graphicsConfig.surfaceConfiguration.format),
+              .width = webgpu::g_graphicsConfig.surfaceConfiguration.width,
+              .height = webgpu::g_graphicsConfig.surfaceConfiguration.height,
+          };
+          overlay.callback(&frame, overlay.user);
+        }
         pass.End();
       }
     } else {
@@ -555,5 +573,6 @@ void aurora_preserve_frame_buffer(bool preserve) {
   (void)preserve;
 #endif
 }
+void aurora_set_overlay_callback(AuroraOverlayCallback callback, void* user) { aurora::g_overlay = {callback, user}; }
 void aurora_set_timescale(float scale) { aurora::time::set_scale(scale); }
 float aurora_get_timescale() { return aurora::time::scale(); }
