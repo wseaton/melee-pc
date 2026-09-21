@@ -13,9 +13,10 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use egui::{RawInput, Rect, pos2};
+use melee_events::{Envelope, Event};
 
 use crate::capture::{Capture, CaptureFrame};
-use crate::events::{Envelope, Event, Tracker};
+use crate::events::Tracker;
 use crate::gpu::{WGPUDevice, WGPUQueue, WGPURenderPassEncoder, WGPUTextureFormat};
 use crate::input::{InputEvent, NavAction, RawEvent, key_tap};
 use crate::overlay::Hud;

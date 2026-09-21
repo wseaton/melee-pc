@@ -1,62 +1,11 @@
-use serde::Serialize;
+use melee_events::{Character, Event, GameMode, PlayerInfo, PlayerKind};
 
-use crate::game::{GameMode, PLAYER_SLOTS, PlayerKind};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub struct PlayerInfo {
-    pub player: u8,
-    pub kind: &'static str,
-    pub character: &'static str,
-    pub stocks: i32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Event {
-    ModeChange {
-        from: &'static str,
-        to: &'static str,
-    },
-    SceneChange {
-        from: u8,
-        to: u8,
-    },
-    MatchStart {
-        players: Vec<PlayerInfo>,
-    },
-    MatchEnd,
-    Damage {
-        player: u8,
-        from: i32,
-        to: i32,
-    },
-    StockLost {
-        player: u8,
-        stocks: i32,
-    },
-    Ko {
-        killer: u8,
-        victim: u8,
-    },
-    SelfDestruct {
-        player: u8,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct Envelope {
-    pub seq: u64,
-    pub frame: u64,
-    pub time_ms: u64,
-    pub dropped: u64,
-    #[serde(flatten)]
-    pub event: Event,
-}
+use crate::game::PLAYER_SLOTS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerSnapshot {
     pub kind: PlayerKind,
-    pub character: &'static str,
+    pub character: Character,
     pub stocks: i32,
     pub damage: i32,
     pub kos: [i32; PLAYER_SLOTS],
@@ -84,7 +33,7 @@ impl Snapshot {
             .filter_map(|(slot, player)| {
                 player.map(|p| PlayerInfo {
                     player: number(slot),
-                    kind: p.kind.label(),
+                    kind: p.kind,
                     character: p.character,
                     stocks: p.stocks,
                 })
@@ -109,8 +58,8 @@ impl Tracker {
 
         if before.mode != now.mode {
             events.push(Event::ModeChange {
-                from: before.mode.name(),
-                to: now.mode.name(),
+                from: before.mode,
+                to: now.mode,
             });
         }
         if before.scene != now.scene {
@@ -164,10 +113,11 @@ impl Tracker {
 
 #[cfg(test)]
 mod tests {
-    use crate::events::{Envelope, Event, PlayerInfo, PlayerSnapshot, Snapshot, Tracker};
-    use crate::game::{GameMode, PlayerKind};
+    use melee_events::{Character, Envelope, Event, GameMode, PlayerInfo, PlayerKind};
 
-    fn fighter(character: &'static str) -> PlayerSnapshot {
+    use crate::events::{PlayerSnapshot, Snapshot, Tracker};
+
+    fn fighter(character: Character) -> PlayerSnapshot {
         PlayerSnapshot {
             kind: PlayerKind::Human,
             character,
@@ -182,8 +132,8 @@ mod tests {
             scene: 2,
             ..Snapshot::default()
         };
-        snapshot.players[0] = Some(fighter("Fox"));
-        snapshot.players[1] = Some(fighter("Marth"));
+        snapshot.players[0] = Some(fighter(Character::Fox));
+        snapshot.players[1] = Some(fighter(Character::Marth));
         snapshot
     }
 
@@ -212,14 +162,14 @@ mod tests {
                     players: vec![
                         PlayerInfo {
                             player: 1,
-                            kind: "HMN",
-                            character: "Fox",
+                            kind: PlayerKind::Human,
+                            character: Character::Fox,
                             stocks: 4
                         },
                         PlayerInfo {
                             player: 2,
-                            kind: "HMN",
-                            character: "Marth",
+                            kind: PlayerKind::Human,
+                            character: Character::Marth,
                             stocks: 4
                         },
                     ]
@@ -232,7 +182,7 @@ mod tests {
     fn mode_change_is_reported_by_name_before_the_scene_change() {
         let mut tracker = settled(Snapshot::default());
         let next = Snapshot {
-            mode: GameMode(0x0E),
+            mode: GameMode::DebugVs,
             scene: 1,
             ..Snapshot::default()
         };
@@ -240,8 +190,8 @@ mod tests {
             tracker.update(next),
             [
                 Event::ModeChange {
-                    from: "title",
-                    to: "debug_vs"
+                    from: GameMode::Title,
+                    to: GameMode::DebugVs
                 },
                 Event::SceneChange { from: 0, to: 1 }
             ]
@@ -260,7 +210,7 @@ mod tests {
         let mut hit = duel();
         hit.players[1] = Some(PlayerSnapshot {
             damage: 13,
-            ..fighter("Marth")
+            ..fighter(Character::Marth)
         });
         assert_eq!(
             tracker.update(hit),
@@ -288,11 +238,11 @@ mod tests {
         kos[1] = 1;
         after.players[0] = Some(PlayerSnapshot {
             kos,
-            ..fighter("Fox")
+            ..fighter(Character::Fox)
         });
         after.players[1] = Some(PlayerSnapshot {
             stocks: 3,
-            ..fighter("Marth")
+            ..fighter(Character::Marth)
         });
         assert_eq!(
             tracker.update(after),
@@ -318,7 +268,7 @@ mod tests {
         after.players[1] = Some(PlayerSnapshot {
             stocks: 3,
             kos,
-            ..fighter("Marth")
+            ..fighter(Character::Marth)
         });
         assert_eq!(
             tracker.update(after),
@@ -340,7 +290,7 @@ mod tests {
         kos[1] = 2;
         after.players[0] = Some(PlayerSnapshot {
             kos,
-            ..fighter("Fox")
+            ..fighter(Character::Fox)
         });
         assert_eq!(
             tracker.update(after),
@@ -363,7 +313,7 @@ mod tests {
         let mut after = duel();
         after.players[0] = Some(PlayerSnapshot {
             stocks: 5,
-            ..fighter("Fox")
+            ..fighter(Character::Fox)
         });
         assert_eq!(tracker.update(after), []);
     }
@@ -389,7 +339,7 @@ mod tests {
         };
         results.players[0] = Some(PlayerSnapshot {
             kind: PlayerKind::Demo,
-            ..fighter("Fox")
+            ..fighter(Character::Fox)
         });
         assert_eq!(
             tracker.update(results),
@@ -433,8 +383,8 @@ mod tests {
         let start = Event::MatchStart {
             players: vec![PlayerInfo {
                 player: 3,
-                kind: "CPU",
-                character: "Mario",
+                kind: PlayerKind::Cpu,
+                character: Character::Mario,
                 stocks: 99,
             }],
         };

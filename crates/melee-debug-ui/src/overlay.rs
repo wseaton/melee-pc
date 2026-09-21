@@ -6,7 +6,8 @@ use egui::{
     StrokeKind, Vec2, pos2, vec2,
 };
 
-use crate::events::Event;
+use melee_events::{Event, GameMode};
+
 use crate::game::{PLAYER_SLOTS, PadButton, PadView};
 
 const FEED_CAPACITY: usize = 7;
@@ -89,7 +90,7 @@ pub fn match_clock(frames: u64) -> String {
 #[derive(Default)]
 pub struct Hud {
     feed: VecDeque<FeedEntry>,
-    mode: &'static str,
+    mode: GameMode,
     match_started: Option<u64>,
     match_ended: Option<u64>,
     kos: [u32; PLAYER_SLOTS],
@@ -186,7 +187,7 @@ impl Hud {
         let scorers: Vec<usize> = (0..PLAYER_SLOTS)
             .filter(|&slot| self.kos[slot] > 0 || self.falls[slot] > 0)
             .collect();
-        let mode = self.mode.to_uppercase().replace('_', " ");
+        let mode = self.mode.name().to_uppercase().replace('_', " ");
         let clock = self
             .match_frames(frame)
             .map_or_else(|| "--:--.--".to_owned(), match_clock);
@@ -634,7 +635,8 @@ fn dpad(painter: &Painter, center: Pos2, pad: &PadView) {
 
 #[cfg(test)]
 mod tests {
-    use crate::events::Event;
+    use melee_events::{Event, GameMode};
+
     use crate::overlay::{
         FEED_CAPACITY, FEED_LIFETIME, FeedKind, Hud, PORT_COLORS, TEXT_DIM, damage_color,
         feed_alpha, match_clock, port_color, slot_index,
@@ -982,8 +984,8 @@ mod tests {
         hud.ingest(
             3,
             &Event::ModeChange {
-                from: "title",
-                to: "debug_vs",
+                from: GameMode::Title,
+                to: GameMode::DebugVs,
             },
         );
         hud.ingest(3, &Event::SceneChange { from: 0, to: 1 });
@@ -994,7 +996,7 @@ mod tests {
                 stocks: 3,
             },
         );
-        assert_eq!(hud.mode, "debug_vs");
+        assert_eq!(hud.mode, GameMode::DebugVs);
         assert!(hud.feed.is_empty());
     }
 

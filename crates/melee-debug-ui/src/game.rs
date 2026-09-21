@@ -1,5 +1,7 @@
 use std::ffi::c_int;
 
+use melee_events::{Character, GameMode, PlayerKind};
+
 use crate::events::{PlayerSnapshot, Snapshot};
 
 pub const PLAYER_SLOTS: usize = 6;
@@ -128,139 +130,6 @@ impl Slot {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlayerKind {
-    Human,
-    Cpu,
-    Demo,
-    Boss,
-}
-
-impl PlayerKind {
-    fn from_raw(raw: c_int) -> Option<Self> {
-        match raw {
-            0 => Some(Self::Human),
-            1 => Some(Self::Cpu),
-            2 => Some(Self::Demo),
-            4 => Some(Self::Boss),
-            _ => None,
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Human => "HMN",
-            Self::Cpu => "CPU",
-            Self::Demo => "DEMO",
-            Self::Boss => "BOSS",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct GameMode(pub u8);
-
-impl GameMode {
-    pub fn name(self) -> &'static str {
-        const NAMES: [&str; 46] = [
-            "title",
-            "menu",
-            "vs",
-            "classic",
-            "adventure",
-            "allstar",
-            "debug",
-            "debug_sound_test",
-            "hanyu_css",
-            "hanyu_sss",
-            "camera_mode",
-            "toy_gallery",
-            "toy_lottery",
-            "toy_collection",
-            "debug_vs",
-            "target_test",
-            "super_sudden_death_vs",
-            "invisible_vs",
-            "slomo_vs",
-            "lightning_vs",
-            "challenger_approach",
-            "classic_gover",
-            "adventure_gover",
-            "allstar_gover",
-            "opening_mv",
-            "debug_cutscene",
-            "debug_gover",
-            "tournament",
-            "training",
-            "tiny_vs",
-            "giant_vs",
-            "stamina_vs",
-            "home_run_contest",
-            "10man_vs",
-            "100man_vs",
-            "3min_vs",
-            "15min_vs",
-            "endless_vs",
-            "cruel_vs",
-            "progressive_scan",
-            "boot",
-            "memcard",
-            "camera_vs",
-            "event",
-            "single_button_vs",
-            "online",
-        ];
-        NAMES.get(usize::from(self.0)).copied().unwrap_or("unknown")
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Character(c_int);
-
-impl Character {
-    pub fn name(self) -> &'static str {
-        const NAMES: [&str; 33] = [
-            "Captain Falcon",
-            "Donkey Kong",
-            "Fox",
-            "Mr. Game & Watch",
-            "Kirby",
-            "Bowser",
-            "Link",
-            "Luigi",
-            "Mario",
-            "Marth",
-            "Mewtwo",
-            "Ness",
-            "Peach",
-            "Pikachu",
-            "Ice Climbers",
-            "Jigglypuff",
-            "Samus",
-            "Yoshi",
-            "Zelda",
-            "Sheik",
-            "Falco",
-            "Young Link",
-            "Dr. Mario",
-            "Roy",
-            "Pichu",
-            "Ganondorf",
-            "Master Hand",
-            "Male Wireframe",
-            "Female Wireframe",
-            "Giga Bowser",
-            "Crazy Hand",
-            "Sandbag",
-            "Popo",
-        ];
-        usize::try_from(self.0)
-            .ok()
-            .and_then(|index| NAMES.get(index).copied())
-            .unwrap_or("Unknown")
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Player {
     pub slot: Slot,
@@ -272,7 +141,10 @@ pub struct Player {
 }
 
 pub fn player(slot: Slot) -> Option<Player> {
-    let kind = PlayerKind::from_raw(unsafe { Player_GetPlayerSlotType(slot.raw()) })?;
+    let kind = PlayerKind::from_raw(unsafe { Player_GetPlayerSlotType(slot.raw()) });
+    if kind == PlayerKind::Unknown {
+        return None;
+    }
     if !unsafe { pc_debug_fighter_alive(slot.raw()) } {
         return None;
     }
@@ -281,7 +153,7 @@ pub fn player(slot: Slot) -> Option<Player> {
     Some(Player {
         slot,
         kind,
-        character: Character(unsafe { Player_GetPlayerCharacter(slot.raw()) }),
+        character: Character::from_raw(unsafe { Player_GetPlayerCharacter(slot.raw()) }),
         stocks: unsafe { Player_GetStocks(slot.raw()) },
         damage: unsafe { Player_GetDamage(slot.raw()) },
         position,
@@ -298,14 +170,14 @@ pub fn kos(killer: Slot) -> [i32; PLAYER_SLOTS] {
 
 pub fn snapshot() -> Snapshot {
     let mut snapshot = Snapshot {
-        mode: GameMode(unsafe { gm_GetCurrentGameMode() }),
+        mode: GameMode::from_raw(i32::from(unsafe { gm_GetCurrentGameMode() })),
         scene: scene_index(),
         ..Snapshot::default()
     };
     for slot in Slot::all() {
         snapshot.players[slot.index()] = player(slot).map(|p| PlayerSnapshot {
             kind: p.kind,
-            character: p.character.name(),
+            character: p.character,
             stocks: p.stocks,
             damage: p.damage,
             kos: kos(slot),
@@ -332,45 +204,7 @@ pub fn set_sim_hz(hz: u32) {
 
 #[cfg(test)]
 mod tests {
-    use crate::game::{Character, GameMode, PadButton, PadView, PlayerKind, Slot};
-
-    #[test]
-    fn player_kind_maps_game_enum() {
-        assert_eq!(PlayerKind::from_raw(0), Some(PlayerKind::Human));
-        assert_eq!(PlayerKind::from_raw(1), Some(PlayerKind::Cpu));
-        assert_eq!(PlayerKind::from_raw(2), Some(PlayerKind::Demo));
-        assert_eq!(PlayerKind::from_raw(3), None);
-        assert_eq!(PlayerKind::from_raw(4), Some(PlayerKind::Boss));
-        assert_eq!(PlayerKind::from_raw(5), None);
-        assert_eq!(PlayerKind::from_raw(-1), None);
-    }
-
-    #[test]
-    fn character_names_match_ckind_order() {
-        assert_eq!(Character(0x00).name(), "Captain Falcon");
-        assert_eq!(Character(0x02).name(), "Fox");
-        assert_eq!(Character(0x13).name(), "Sheik");
-        assert_eq!(Character(0x19).name(), "Ganondorf");
-        assert_eq!(Character(0x1A).name(), "Master Hand");
-        assert_eq!(Character(0x20).name(), "Popo");
-    }
-
-    #[test]
-    fn character_out_of_range_is_unknown() {
-        assert_eq!(Character(0x21).name(), "Unknown");
-        assert_eq!(Character(-1).name(), "Unknown");
-    }
-
-    #[test]
-    fn game_mode_names_match_the_enum() {
-        assert_eq!(GameMode(0x00).name(), "title");
-        assert_eq!(GameMode(0x02).name(), "vs");
-        assert_eq!(GameMode(0x0E).name(), "debug_vs");
-        assert_eq!(GameMode(0x18).name(), "opening_mv");
-        assert_eq!(GameMode(0x2D).name(), "online");
-        assert_eq!(GameMode(0x2E).name(), "unknown");
-        assert_eq!(GameMode(0xFF).name(), "unknown");
-    }
+    use crate::game::{PadButton, PadView, Slot};
 
     #[test]
     fn pad_button_masks_match_hsd_pad_bits() {

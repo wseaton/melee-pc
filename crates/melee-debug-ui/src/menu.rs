@@ -46,7 +46,7 @@ pub fn show(ctx: &Context, frame_count: u64) {
 
 fn player_row(ui: &mut egui::Ui, player: &Player) {
     ui.label(format!("P{}", player.slot.number()));
-    ui.label(player.kind.label());
+    ui.label(player.kind.name());
     ui.label(player.character.name());
     ui.label(format!("{}%", player.damage));
     ui.label(format!("{:.1}", player.position.x));

@@ -394,6 +394,15 @@ dependencies = [
  "bindgen",
  "bytemuck",
  "egui",
+ "melee-events",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "melee-events"
+version = "0.1.0"
+dependencies = [
  "serde",
  "serde_json",
 ]
