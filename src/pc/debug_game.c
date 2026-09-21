@@ -3,8 +3,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <melee/cm/camera.h>
 #include <melee/ft/forward.h>
+#include <melee/lb/lbvector.h>
 #include <melee/pl/player.h>
+#include <sysdolphin/baselib/cobj.h>
 #include <sysdolphin/baselib/controller.h>
 #include <sysdolphin/baselib/gobj.h>
 
@@ -30,6 +33,29 @@ bool pc_debug_fighter_alive(int slot) {
         }
     }
     return false;
+}
+
+bool pc_debug_tag_anchor(int slot, float* x, float* y) {
+    const HSD_GObj* camera = Camera_80030A50();
+    if (camera == NULL || camera->hsd_obj == NULL || !pc_debug_fighter_alive(slot)) {
+        return false;
+    }
+    HSD_CObj* cobj = camera->hsd_obj;
+    const float width = cobj->viewport.xmax - cobj->viewport.xmin;
+    const float height = cobj->viewport.ymax - cobj->viewport.ymin;
+    if (width <= 0.0f || height <= 0.0f) {
+        return false;
+    }
+    Vec3 world;
+    Vec3 screen;
+    Player_LoadPlayerCoords(slot, &world);
+    world.y += Player_800360D8(slot) - 2.5f;
+    if (lbVector_WorldToScreen(cobj, &world, &screen, 0) == NULL) {
+        return false;
+    }
+    *x = (screen.x - cobj->viewport.xmin) / width;
+    *y = (screen.y - cobj->viewport.ymin) / height;
+    return true;
 }
 
 void pc_debug_pad(int port, PcDebugPad* out) {

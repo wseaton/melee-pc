@@ -13,9 +13,10 @@ use melee_events::Command;
 use tokio::net::TcpListener;
 
 use crate::error::Error;
-use crate::jira::{Jira, Mode};
+use crate::jira::{Jira, Mode, notice};
 use crate::plan::{Outcome, Rules, plan};
 use crate::scope::{Label, ProjectKey, Scope};
+use crate::stream::Session;
 
 /// Closes a Jira ticket when Sandbag goes far enough in Home Run Contest.
 ///
@@ -79,7 +80,8 @@ async fn run(args: Args) -> Result<(), Error> {
         key: ticket.key.clone(),
         summary: ticket.summary.clone(),
     };
-    let result = stream::await_result(&listener, &greeting).await?;
+    let mut session = Session::accept(&listener, &greeting).await?;
+    let result = session.result().await?;
     println!(
         "{} sent the bag {} ft: {:?}",
         result.batter.name(),
@@ -89,6 +91,8 @@ async fn run(args: Args) -> Result<(), Error> {
 
     for action in plan(&ticket, &result, &rules) {
         jira.apply(&action).await?;
+        let text = notice(&action, jira.mode());
+        session.send(&Command::Notice { text }).await?;
     }
     Ok(())
 }

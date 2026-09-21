@@ -29,6 +29,8 @@ unsafe extern "C" {
     fn gm_GetCurrentSceneIndex() -> u8;
     fn gm_GetCurrentGameMode() -> u8;
     fn gm_80180AE4() -> i32;
+    fn pc_debug_tag_anchor(slot: c_int, x: *mut f32, y: *mut f32) -> bool;
+    fn pc_widescreen_aspect() -> f32;
     fn pc_get_sim_hz() -> u32;
     fn pc_set_sim_hz(hz: u32);
 }
@@ -114,6 +116,8 @@ pub fn pads() -> [Option<PadView>; PAD_PORTS] {
 pub struct Slot(u8);
 
 impl Slot {
+    pub const SANDBAG: Self = Self(1);
+
     pub fn all() -> impl Iterator<Item = Self> {
         (0..PLAYER_SLOTS as u8).map(Self)
     }
@@ -159,6 +163,16 @@ pub fn player(slot: Slot) -> Option<Player> {
         damage: unsafe { Player_GetDamage(slot.raw()) },
         position,
     })
+}
+
+pub fn tag_anchor(slot: Slot) -> Option<[f32; 2]> {
+    let mut anchor = [0.0_f32; 2];
+    let [x, y] = &mut anchor;
+    unsafe { pc_debug_tag_anchor(slot.raw(), x, y) }.then_some(anchor)
+}
+
+pub fn presentation_aspect() -> f32 {
+    unsafe { pc_widescreen_aspect() }
 }
 
 pub fn kos(killer: Slot) -> [i32; PLAYER_SLOTS] {

@@ -78,6 +78,14 @@ void Player_LoadPlayerCoords(int32_t slot, Vec3* out) {
 uint8_t gm_GetCurrentGameMode(void) {
     return 2;
 }
+bool pc_debug_tag_anchor(int slot, float* x, float* y) {
+    *x = 0.3f + 0.25f * (float)slot;
+    *y = 0.45f;
+    return slot < 2;
+}
+float pc_widescreen_aspect(void) {
+    return 73.0f / 60.0f;
+}
 int32_t gm_80180AE4(void) {
     return 0;
 }

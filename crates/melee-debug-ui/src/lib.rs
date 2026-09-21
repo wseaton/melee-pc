@@ -22,7 +22,7 @@ use crate::events::Tracker;
 use crate::game::{Player, Slot};
 use crate::gpu::{WGPUDevice, WGPUQueue, WGPURenderPassEncoder, WGPUTextureFormat};
 use crate::input::{InputEvent, NavAction, RawEvent, key_tap};
-use crate::overlay::Hud;
+use crate::overlay::{Hud, View};
 use crate::painter::{Frame, Painter, Target};
 use crate::shipper::Shipper;
 use crate::trace::Trace;
@@ -199,6 +199,9 @@ impl DebugUi {
         }
         if let Some(telemetry) = lock(&self.telemetry).as_mut() {
             telemetry.ship(frame_count, events);
+            for command in telemetry.shipper.commands() {
+                monitor.hud.command(frame_count, command);
+            }
         }
         let drawable = width_points > 0.0 && height_points > 0.0 && pixels_per_point > 0.0;
         match game.publish_action(drawable) {
@@ -227,9 +230,17 @@ impl DebugUi {
             ..Default::default()
         };
         let (menu_visible, overlays) = (game.visible, game.overlays);
+        let view = View {
+            aspect: game::presentation_aspect(),
+            bag: monitor
+                .hud
+                .wants_bag()
+                .then(|| game::tag_anchor(Slot::SANDBAG))
+                .flatten(),
+        };
         let output = self.ctx.run_ui(raw_input, |ui| {
             if overlays {
-                monitor.hud.draw(ui.ctx(), frame_count, &game::pads());
+                monitor.hud.draw(ui.ctx(), frame_count, &game::pads(), view);
             }
             if menu_visible {
                 menu::show(ui.ctx(), frame_count);

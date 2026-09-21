@@ -42,6 +42,10 @@ static float pc_widescreen_target(void) {
     return fmaxf(ORIGINAL_ASPECT, (float)width / height);
 }
 
+float pc_widescreen_aspect(void) {
+    return pc_widescreen_target();
+}
+
 void pc_widescreen_set_mode(int mode) {
     s_mode = mode >= 0 && mode <= 2 ? mode : 0;
     AuroraSetViewportPolicy(AURORA_VIEWPORT_STRETCH);

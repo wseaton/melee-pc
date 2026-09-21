@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
     Nameplate { key: String, summary: String },
+    Notice { text: String },
 }
 
 #[cfg(test)]
@@ -21,6 +22,16 @@ mod tests {
             line,
             r#"{"type":"nameplate","key":"DEMO-7","summary":"Sandbag \"quoted\" summary"}"#
         );
+        assert_eq!(serde_json::from_str::<Command>(&line).unwrap(), sent);
+    }
+
+    #[test]
+    fn a_notice_round_trips() {
+        let sent = Command::Notice {
+            text: "DEMO-7 closed".to_owned(),
+        };
+        let line = serde_json::to_string(&sent).unwrap();
+        assert_eq!(line, r#"{"type":"notice","text":"DEMO-7 closed"}"#);
         assert_eq!(serde_json::from_str::<Command>(&line).unwrap(), sent);
     }
 

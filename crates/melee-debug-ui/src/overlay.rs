@@ -1,12 +1,13 @@
 use std::collections::VecDeque;
 
+use egui::emath::TSTransform;
 use egui::epaint::{CornerRadius, PathShape};
 use egui::{
     Align2, Color32, Context, FontId, Id, LayerId, Order, Painter, Pos2, Rect, Shape, Stroke,
     StrokeKind, Vec2, pos2, vec2,
 };
 
-use melee_events::{Centimeters, Event, GameMode};
+use melee_events::{Centimeters, Command, Event, GameMode};
 
 use crate::game::{PLAYER_SLOTS, PadButton, PadView};
 
@@ -18,7 +19,15 @@ const COMBO_WINDOW: u64 = 90;
 
 const MARGIN: f32 = 16.0;
 const FEED_TOP: f32 = MARGIN + 46.0;
-const HRC_FEED_TOP: f32 = 225.0;
+const HRC_FEED_TOP: f32 = 112.0;
+const FEED_WIDTH: f32 = 250.0;
+pub const GAME_HEIGHT: f32 = 480.0;
+const NAMEPLATE_SIZE: Vec2 = vec2(176.0, 36.0);
+const NAMEPLATE_LIFT: f32 = 30.0;
+const PAD_SIZE: Vec2 = vec2(214.0, 96.0);
+const PAD_GAP: f32 = 10.0;
+const PAD_SCALE: f32 = 0.6;
+const NAMEPLATE_SUMMARY_CHARS: usize = 34;
 const HOME_RUN_GOLD: Color32 = Color32::from_rgb(255, 196, 64);
 const PANEL_RADIUS: u8 = 10;
 const PANEL_FILL: Color32 = Color32::from_rgba_premultiplied(9, 11, 16, 200);
@@ -51,6 +60,7 @@ fn port_color(player: u8) -> Color32 {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FeedKind {
     Banner(&'static str),
+    Notice(String),
     HomeRun {
         distance: Centimeters,
     },
@@ -97,9 +107,59 @@ pub fn match_clock(frames: u64) -> String {
     format!("{:02}:{:02}.{:02}", seconds / 60, seconds % 60, centis)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Nameplate {
+    pub key: String,
+    pub summary: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct View {
+    pub aspect: f32,
+    pub bag: Option<[f32; 2]>,
+}
+
+pub fn game_rect(window: Rect, aspect: f32) -> Rect {
+    if !(aspect.is_finite() && aspect > 0.0 && window.height() > 0.0) {
+        return window;
+    }
+    let size = if window.width() / window.height() > aspect {
+        vec2(window.height() * aspect, window.height())
+    } else {
+        vec2(window.width(), window.width() / aspect)
+    };
+    Rect::from_center_size(window.center(), size)
+}
+
+pub fn nameplate_rect(screen: Rect, bag: [f32; 2]) -> Rect {
+    let anchor = pos2(
+        screen.left() + bag[0] * screen.width(),
+        screen.top() + bag[1] * screen.height(),
+    );
+    let wanted = Rect::from_center_size(
+        pos2(anchor.x, anchor.y - NAMEPLATE_LIFT - NAMEPLATE_SIZE.y / 2.0),
+        NAMEPLATE_SIZE,
+    );
+    let room = screen.shrink(4.0);
+    let shift = vec2(
+        (room.left() - wanted.left()).max(0.0) - (wanted.right() - room.right()).max(0.0),
+        (room.top() - wanted.top()).max(0.0) - (wanted.bottom() - room.bottom()).max(0.0),
+    );
+    wanted.translate(shift)
+}
+
+pub fn truncated(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+    let kept: String = text.chars().take(max_chars.saturating_sub(1)).collect();
+    format!("{}…", kept.trim_end())
+}
+
 #[derive(Default)]
 pub struct Hud {
     feed: VecDeque<FeedEntry>,
+    nameplate: Option<Nameplate>,
     mode: GameMode,
     match_started: Option<u64>,
     match_ended: Option<u64>,
@@ -108,6 +168,19 @@ pub struct Hud {
 }
 
 impl Hud {
+    pub fn command(&mut self, frame: u64, command: Command) {
+        match command {
+            Command::Nameplate { key, summary } => {
+                self.nameplate = Some(Nameplate { key, summary });
+            }
+            Command::Notice { text } => self.push(frame, FeedKind::Notice(text)),
+        }
+    }
+
+    pub fn wants_bag(&self) -> bool {
+        self.nameplate.is_some() && self.mode == GameMode::HomeRunContest
+    }
+
     pub fn ingest(&mut self, frame: u64, event: &Event) {
         let kind = match *event {
             Event::ModeChange { to, .. } => {
@@ -170,6 +243,10 @@ impl Hud {
                 }
             }
         };
+        self.push(frame, kind);
+    }
+
+    fn push(&mut self, frame: u64, kind: FeedKind) {
         self.feed.push_back(FeedEntry { born: frame, kind });
         while self.feed.len() > FEED_CAPACITY {
             self.feed.pop_front();
@@ -186,12 +263,50 @@ impl Hud {
         Some(self.match_ended.unwrap_or(frame).saturating_sub(started))
     }
 
-    pub fn draw(&self, ctx: &Context, frame: u64, pads: &[Option<PadView>]) {
-        let painter = ctx.layer_painter(LayerId::new(Order::Background, Id::new("hud")));
-        let screen = ctx.content_rect();
+    pub fn draw(&self, ctx: &Context, frame: u64, pads: &[Option<PadView>], view: View) {
+        let layer = LayerId::new(Order::Background, Id::new("hud"));
+        let image = game_rect(ctx.content_rect(), view.aspect);
+        let scale = image.height() / GAME_HEIGHT;
+        if !(scale.is_finite() && scale > 0.0) {
+            return;
+        }
+        ctx.set_transform_layer(layer, TSTransform::new(image.min.to_vec2(), scale));
+        let painter = ctx.layer_painter(layer);
+        let screen = Rect::from_min_size(Pos2::ZERO, image.size() / scale);
         self.draw_match_bar(&painter, screen, frame);
         self.draw_feed(&painter, screen, frame);
-        draw_pads(&painter, screen, pads);
+        if let Some(bag) = view.bag {
+            self.draw_nameplate(&painter, screen, bag);
+        }
+
+        let pad_layer = LayerId::new(Order::Background, Id::new("hud-pads"));
+        let pad_scale = scale * PAD_SCALE;
+        ctx.set_transform_layer(pad_layer, TSTransform::new(image.min.to_vec2(), pad_scale));
+        let pad_screen = Rect::from_min_size(Pos2::ZERO, image.size() / pad_scale);
+        draw_pads(&ctx.layer_painter(pad_layer), pad_screen, pads);
+    }
+
+    fn draw_nameplate(&self, painter: &Painter, screen: Rect, bag: [f32; 2]) {
+        let Some(plate) = self.nameplate.as_ref().filter(|_| self.wants_bag()) else {
+            return;
+        };
+        let rect = nameplate_rect(screen, bag);
+        panel(painter, rect, 1.0);
+        accent(painter, rect, HOME_RUN_GOLD, 1.0);
+        painter.text(
+            pos2(rect.left() + 12.0, rect.top() + 11.0),
+            Align2::LEFT_CENTER,
+            &plate.key,
+            FontId::proportional(13.0),
+            HOME_RUN_GOLD,
+        );
+        painter.text(
+            pos2(rect.left() + 12.0, rect.bottom() - 10.0),
+            Align2::LEFT_CENTER,
+            truncated(&plate.summary, NAMEPLATE_SUMMARY_CHARS),
+            FontId::proportional(9.5),
+            TEXT,
+        );
     }
 
     fn draw_match_bar(&self, painter: &Painter, screen: Rect, frame: u64) {
@@ -285,7 +400,7 @@ impl Hud {
     }
 
     fn draw_feed(&self, painter: &Painter, screen: Rect, frame: u64) {
-        let width = 236.0;
+        let width = FEED_WIDTH;
         let row = 30.0;
         let mut y = screen.top() + self.feed_top();
         for entry in &self.feed {
@@ -309,6 +424,16 @@ impl Hud {
                         Align2::CENTER_CENTER,
                         text,
                         FontId::proportional(12.0),
+                        fade(TEXT, alpha),
+                    );
+                }
+                FeedKind::Notice(ref text) => {
+                    accent(painter, rect, HOME_RUN_GOLD, alpha);
+                    painter.text(
+                        pos2(left + 6.0, mid),
+                        Align2::LEFT_CENTER,
+                        text,
+                        FontId::proportional(10.0),
                         fade(TEXT, alpha),
                     );
                 }
@@ -464,16 +589,18 @@ fn arrow(painter: &Painter, center: Pos2, color: Color32) {
     )));
 }
 
+pub fn pad_rect(screen: Rect, row: usize) -> Rect {
+    let top = screen.top() + MARGIN + row as f32 * (PAD_SIZE.y + PAD_GAP);
+    Rect::from_min_size(pos2(screen.left() + MARGIN, top), PAD_SIZE)
+}
+
 fn draw_pads(painter: &Painter, screen: Rect, pads: &[Option<PadView>]) {
-    let size = vec2(214.0, 96.0);
-    let mut x = screen.left() + MARGIN;
-    for (port, pad) in pads.iter().enumerate() {
-        let Some(pad) = pad else {
-            continue;
-        };
-        let rect = Rect::from_min_size(pos2(x, screen.bottom() - MARGIN - size.y), size);
-        draw_pad(painter, rect, port, pad);
-        x += size.x + 10.0;
+    let connected = pads
+        .iter()
+        .enumerate()
+        .filter_map(|(port, pad)| pad.as_ref().map(|pad| (port, pad)));
+    for (row, (port, pad)) in connected.enumerate() {
+        draw_pad(painter, pad_rect(screen, row), port, pad);
     }
 }
 
@@ -664,11 +791,16 @@ fn dpad(painter: &Painter, center: Pos2, pad: &PadView) {
 
 #[cfg(test)]
 mod tests {
-    use melee_events::{Centimeters, Event, GameMode};
+    use egui::{Rect, pos2, vec2};
+    use melee_events::{Centimeters, Command, Event, GameMode};
 
     use crate::overlay::{
         FEED_CAPACITY, FEED_LIFETIME, FEED_TOP, FeedKind, HRC_FEED_TOP, Hud, PORT_COLORS, TEXT_DIM,
         damage_color, feed_alpha, home_run_label, match_clock, port_color, slot_index,
+    };
+    use crate::overlay::{
+        MARGIN, NAMEPLATE_LIFT, NAMEPLATE_SIZE, Nameplate, PAD_GAP, PAD_SIZE, game_rect,
+        nameplate_rect, pad_rect, truncated,
     };
 
     #[test]
@@ -1047,6 +1179,160 @@ mod tests {
             },
         );
         assert_eq!(hud.feed_top(), FEED_TOP);
+    }
+
+    #[test]
+    fn the_game_image_is_centered_and_fitted_by_height_or_width() {
+        let aspect = 73.0 / 60.0;
+        let wide = game_rect(
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(1280.0, 960.0)),
+            aspect,
+        );
+        assert_eq!(wide.height(), 960.0);
+        assert!((wide.width() - 1168.0).abs() < 0.01);
+        assert!((wide.left() - 56.0).abs() < 0.01);
+        assert_eq!(wide.top(), 0.0);
+
+        let tall = game_rect(
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(600.0, 1000.0)),
+            aspect,
+        );
+        assert_eq!(tall.width(), 600.0);
+        assert!((tall.height() - 600.0 / aspect).abs() < 0.01);
+        assert!((tall.center().y - 500.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_bad_aspect_falls_back_to_the_window() {
+        let window = Rect::from_min_size(pos2(0.0, 0.0), vec2(640.0, 480.0));
+        for aspect in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+            assert_eq!(game_rect(window, aspect), window);
+        }
+    }
+
+    #[test]
+    fn the_nameplate_sits_above_its_anchor() {
+        let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(584.0, 480.0));
+        let rect = nameplate_rect(screen, [0.5, 0.5]);
+        assert!((rect.center().x - 292.0).abs() < 0.01);
+        assert!((rect.bottom() - (240.0 - NAMEPLATE_LIFT)).abs() < 0.01);
+        assert_eq!(rect.size(), NAMEPLATE_SIZE);
+    }
+
+    #[test]
+    fn the_nameplate_stays_on_screen_when_the_bag_does_not() {
+        let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(584.0, 480.0));
+        for bag in [
+            [-0.5, 0.5],
+            [1.5, 0.5],
+            [0.5, -0.5],
+            [0.5, 1.5],
+            [0.0, 0.0],
+            [1.0, 1.0],
+        ] {
+            let rect = nameplate_rect(screen, bag);
+            assert!(screen.contains_rect(rect), "{bag:?} gave {rect:?}");
+            assert_eq!(rect.size(), NAMEPLATE_SIZE);
+        }
+    }
+
+    #[test]
+    fn controller_cards_stack_down_the_left_edge() {
+        let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(973.0, 800.0));
+        let first = pad_rect(screen, 0);
+        let second = pad_rect(screen, 1);
+        assert_eq!(first.min, pos2(MARGIN, MARGIN));
+        assert_eq!(first.size(), PAD_SIZE);
+        assert_eq!(second.left(), first.left());
+        assert_eq!(second.top(), first.bottom() + PAD_GAP);
+        assert!(screen.contains_rect(pad_rect(screen, 3)));
+    }
+
+    #[test]
+    fn long_summaries_are_cut_on_a_character_boundary() {
+        assert_eq!(truncated("short", 10), "short");
+        assert_eq!(truncated("exactly ten", 11), "exactly ten");
+        assert_eq!(
+            truncated("Sandbag: test ticket for the demo", 12),
+            "Sandbag: te…"
+        );
+        assert_eq!(truncated("trailing space here", 9), "trailing…");
+        assert_eq!(truncated("ｗｉｄｅ ｃｈａｒｓ ｈｅｒｅ", 5), "ｗｉｄｅ…");
+        assert_eq!(truncated("", 5), "");
+    }
+
+    #[test]
+    fn a_nameplate_command_is_kept_and_only_wanted_in_home_run_contest() {
+        let mut hud = Hud::default();
+        assert!(!hud.wants_bag());
+        hud.command(
+            1,
+            Command::Nameplate {
+                key: "DEMO-7".into(),
+                summary: "Sandbag".into(),
+            },
+        );
+        assert!(hud.feed.is_empty());
+        assert!(!hud.wants_bag());
+        hud.ingest(
+            3,
+            &Event::ModeChange {
+                from: GameMode::Title,
+                to: GameMode::HomeRunContest,
+            },
+        );
+        assert!(hud.wants_bag());
+        assert_eq!(
+            hud.nameplate,
+            Some(Nameplate {
+                key: "DEMO-7".into(),
+                summary: "Sandbag".into()
+            })
+        );
+        hud.ingest(
+            742,
+            &Event::ModeChange {
+                from: GameMode::HomeRunContest,
+                to: GameMode::Menu,
+            },
+        );
+        assert!(!hud.wants_bag());
+    }
+
+    #[test]
+    fn a_later_nameplate_replaces_the_first() {
+        let mut hud = Hud::default();
+        for key in ["DEMO-7", "DEMO-8"] {
+            hud.command(
+                1,
+                Command::Nameplate {
+                    key: key.into(),
+                    summary: "Sandbag".into(),
+                },
+            );
+        }
+        assert_eq!(hud.nameplate.map(|plate| plate.key), Some("DEMO-8".into()));
+    }
+
+    #[test]
+    fn a_notice_becomes_a_feed_row_that_expires_like_the_rest() {
+        let mut hud = Hud::default();
+        hud.command(
+            800,
+            Command::Notice {
+                text: "DEMO-7  moved to Closed".into(),
+            },
+        );
+        assert_eq!(hud.feed.len(), 1);
+        assert_eq!(hud.feed[0].born, 800);
+        assert_eq!(
+            hud.feed[0].kind,
+            FeedKind::Notice("DEMO-7  moved to Closed".into())
+        );
+        hud.expire(800 + FEED_LIFETIME - 1);
+        assert_eq!(hud.feed.len(), 1);
+        hud.expire(800 + FEED_LIFETIME);
+        assert!(hud.feed.is_empty());
     }
 
     #[test]

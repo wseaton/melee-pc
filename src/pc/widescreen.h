@@ -21,6 +21,8 @@ struct HSD_ImageDesc;
 void pc_widescreen_set_mode(int mode);
 void pc_widescreen_set_scene(bool supported);
 void pc_widescreen_update(void);
+/* The aspect ratio the game image is presented at inside the window. */
+float pc_widescreen_aspect(void);
 float pc_widescreen_scale(void);
 
 /* The horizontal scale setupNormalCamera actually divided this camera's

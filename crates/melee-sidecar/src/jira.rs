@@ -56,6 +56,17 @@ pub fn resolve_transition<'a>(
         })
 }
 
+pub fn notice(action: &Action, mode: Mode) -> String {
+    match (action, mode) {
+        (Action::Comment { key, .. }, Mode::Live) => format!("{key}  comment posted"),
+        (Action::Comment { key, .. }, Mode::DryRun) => format!("DRY RUN  would comment on {key}"),
+        (Action::Transition { key, to }, Mode::Live) => format!("{key}  moved to {to}"),
+        (Action::Transition { key, to }, Mode::DryRun) => {
+            format!("DRY RUN  would move {key} to {to}")
+        }
+    }
+}
+
 fn jira<E: std::fmt::Display>(error: E) -> Error {
     Error::Jira(format!("{error:#}"))
 }
@@ -75,6 +86,10 @@ impl Jira {
             client: JiraClient::new(config),
             mode,
         })
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     pub fn browse_url(&self, ticket: &Ticket) -> String {
@@ -124,7 +139,8 @@ mod tests {
     use serde_json::json;
 
     use crate::error::Error;
-    use crate::jira::{resolve_transition, ticket_from_row};
+    use crate::jira::{Mode, notice, resolve_transition, ticket_from_row};
+    use crate::plan::Action;
     use crate::scope::Label;
 
     fn label() -> Label {
@@ -179,6 +195,28 @@ mod tests {
                 Err(Error::BadRow(_))
             ));
         }
+    }
+
+    #[test]
+    fn a_notice_says_what_happened_or_what_would_have() {
+        let comment = Action::Comment {
+            key: "DEMO-7".to_owned(),
+            body: "long text the HUD has no room for".to_owned(),
+        };
+        let close = Action::Transition {
+            key: "DEMO-7".to_owned(),
+            to: "Closed".to_owned(),
+        };
+        assert_eq!(notice(&comment, Mode::Live), "DEMO-7  comment posted");
+        assert_eq!(notice(&close, Mode::Live), "DEMO-7  moved to Closed");
+        assert_eq!(
+            notice(&comment, Mode::DryRun),
+            "DRY RUN  would comment on DEMO-7"
+        );
+        assert_eq!(
+            notice(&close, Mode::DryRun),
+            "DRY RUN  would move DEMO-7 to Closed"
+        );
     }
 
     fn transitions() -> Vec<(String, String)> {

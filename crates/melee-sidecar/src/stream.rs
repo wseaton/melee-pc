@@ -3,6 +3,7 @@ use std::io::ErrorKind;
 use melee_events::{Command, Envelope};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::TcpListener;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use crate::error::Error;
 use crate::run::{Run, RunResult};
@@ -15,31 +16,48 @@ async fn next_line<R: AsyncBufRead + Unpin>(lines: &mut Lines<R>) -> Result<Opti
     }
 }
 
-pub async fn await_result(listener: &TcpListener, greeting: &Command) -> Result<RunResult, Error> {
-    let (stream, peer) = listener.accept().await?;
-    println!("game connected from {peer}");
-    let (reader, mut writer) = stream.into_split();
+pub struct Session {
+    lines: Lines<BufReader<OwnedReadHalf>>,
+    writer: OwnedWriteHalf,
+}
 
-    let mut line = serde_json::to_string(greeting).map_err(std::io::Error::from)?;
-    line.push('\n');
-    writer.write_all(line.as_bytes()).await?;
-
-    let mut run = Run::default();
-    let mut lines = BufReader::new(reader).lines();
-    while let Some(line) = next_line(&mut lines).await? {
-        if line.trim().is_empty() {
-            continue;
-        }
-        match serde_json::from_str::<Envelope>(&line) {
-            Ok(envelope) => {
-                if let Some(result) = run.observe(&envelope.event) {
-                    return Ok(result);
-                }
-            }
-            Err(error) => eprintln!("skipping a line this build cannot read ({error}): {line}"),
-        }
+impl Session {
+    pub async fn accept(listener: &TcpListener, greeting: &Command) -> Result<Self, Error> {
+        let (stream, peer) = listener.accept().await?;
+        println!("game connected from {peer}");
+        let (reader, writer) = stream.into_split();
+        let mut session = Self {
+            lines: BufReader::new(reader).lines(),
+            writer,
+        };
+        session.send(greeting).await?;
+        Ok(session)
     }
-    Err(Error::StreamClosed)
+
+    pub async fn send(&mut self, command: &Command) -> Result<(), Error> {
+        let mut line = serde_json::to_string(command).map_err(std::io::Error::from)?;
+        line.push('\n');
+        self.writer.write_all(line.as_bytes()).await?;
+        Ok(())
+    }
+
+    pub async fn result(&mut self) -> Result<RunResult, Error> {
+        let mut run = Run::default();
+        while let Some(line) = next_line(&mut self.lines).await? {
+            if line.trim().is_empty() {
+                continue;
+            }
+            match serde_json::from_str::<Envelope>(&line) {
+                Ok(envelope) => {
+                    if let Some(result) = run.observe(&envelope.event) {
+                        return Ok(result);
+                    }
+                }
+                Err(error) => eprintln!("skipping a line this build cannot read ({error}): {line}"),
+            }
+        }
+        Err(Error::StreamClosed)
+    }
 }
 
 #[cfg(test)]
@@ -50,7 +68,7 @@ mod tests {
 
     use crate::error::Error;
     use crate::run::RunResult;
-    use crate::stream::await_result;
+    use crate::stream::Session;
 
     const RECORDED: &str = concat!(
         r#"{"seq":0,"frame":3,"time_ms":1789998103100,"dropped":0,"type":"mode_change","from":"title","to":"home_run_contest"}"#,
@@ -86,15 +104,18 @@ mod tests {
             let stream = TcpStream::connect(addr).await.unwrap();
             let (reader, mut writer) = stream.into_split();
             writer.write_all(RECORDED.as_bytes()).await.unwrap();
-            let mut greeting = String::new();
-            BufReader::new(reader)
-                .read_line(&mut greeting)
-                .await
-                .unwrap();
-            greeting
+            let mut lines = BufReader::new(reader).lines();
+            let greeting = lines.next_line().await.unwrap().unwrap();
+            let notice = lines.next_line().await.unwrap().unwrap();
+            (greeting, notice)
         });
 
-        let result = await_result(&listener, &nameplate()).await.unwrap();
+        let mut session = Session::accept(&listener, &nameplate()).await.unwrap();
+        let result = session.result().await.unwrap();
+        let closed = Command::Notice {
+            text: "DEMO-7 closed".to_owned(),
+        };
+        session.send(&closed).await.unwrap();
         assert_eq!(
             result,
             RunResult {
@@ -102,12 +123,12 @@ mod tests {
                 distance: Centimeters(4720)
             }
         );
-        let greeting = game.await.unwrap();
+        let (greeting, notice) = game.await.unwrap();
         assert_eq!(
-            serde_json::from_str::<Command>(greeting.trim_end()).unwrap(),
+            serde_json::from_str::<Command>(&greeting).unwrap(),
             nameplate()
         );
-        assert!(greeting.ends_with('\n'));
+        assert_eq!(serde_json::from_str::<Command>(&notice).unwrap(), closed);
     }
 
     #[tokio::test]
@@ -119,9 +140,7 @@ mod tests {
             let partial: String = RECORDED.lines().take(4).map(|l| format!("{l}\n")).collect();
             stream.write_all(partial.as_bytes()).await.unwrap();
         });
-        assert!(matches!(
-            await_result(&listener, &nameplate()).await,
-            Err(Error::StreamClosed)
-        ));
+        let mut session = Session::accept(&listener, &nameplate()).await.unwrap();
+        assert!(matches!(session.result().await, Err(Error::StreamClosed)));
     }
 }
