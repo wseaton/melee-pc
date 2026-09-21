@@ -133,7 +133,7 @@ hrc-jira project *args: build _disc _out (tas movies / hrc_movie + ".tas")
     target/release/melee-sidecar --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}} &
     sidecar=$!
     until lsof -nP -iTCP:{{events_port}} -sTCP:LISTEN >/dev/null 2>&1; do kill -0 $sidecar; sleep 0.2; done
-    {{quiet}} MELEE_WINDOW_SIZE={{size}} MELEE_CAPTURE={{out_dir}}/hrc_jira.mp4 MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{out_dir}}/{{hrc_movie}}.mrc MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15 MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES=1300 {{build_dir}}/melee --no-card "{{disc}}"
+    {{quiet}} MELEE_WINDOW_SIZE={{size}} MELEE_CAPTURE={{out_dir}}/hrc_jira.mp4 MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{out_dir}}/{{hrc_movie}}.mrc MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15 MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES=1500 {{build_dir}}/melee --no-card "{{disc}}"
     wait $sidecar
 
 # listen for NDJSON match events and pretty-print them
