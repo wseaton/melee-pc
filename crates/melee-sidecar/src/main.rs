@@ -60,6 +60,7 @@ async fn run(args: Args) -> Result<(), Error> {
 
     let jira = Jira::connect(mode)?;
     let ticket = jira.pick(&scope).await?;
+    jira.require_transition(&ticket, &rules.done_status).await?;
     println!("mode: {mode:?}");
     println!(
         "ticket: {} {} ({})",

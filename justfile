@@ -107,6 +107,10 @@ hrc-render movie character="15" frames="0": build _disc _out
 hrc-demo: (tas movies / "hrc_puff_rest.tas")
     just hrc-render {{out_dir}}/hrc_puff_rest.mrc 15 760
 
+# replay a Home Run Contest movie and write player positions to build/captures/<stem>.csv
+hrc-trace movie character="15" frames="0": build _disc _out
+    {{quiet}} MELEE_TRACE={{out_dir}}/{{file_stem(movie)}}.csv MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
+
 # replay a Home Run Contest movie while shipping match events (run `just events` first)
 hrc-events movie character="15" frames="0": build _disc
     {{quiet}} MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
@@ -115,10 +119,21 @@ hrc-events movie character="15" frames="0": build _disc
 replay-events movie frames="0": build _disc
     {{quiet}} MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{movie}} MELEE_DEBUG_VS=cpu MELEE_EXIT_AFTER_FRAMES={{frames}} {{build_dir}}/melee --no-card "{{disc}}"
 
-# wait for a Home Run Contest result and act on one ticket labeled melee-demo in <project>;
-# dry-run unless `--live` is passed. Run this first, then `just hrc-events <movie>` or play with MELEE_EVENTS_ADDR set
+# act on one melee-demo ticket in <project> when a Home Run Contest ends; dry-run unless --live. Start it before the game
 sidecar project *args:
     cargo run --release -p melee-sidecar -- --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}}
+
+# the whole bit: sidecar, the Rest movie, and a video of it; extra args go to the sidecar, e.g. `just hrc-jira INFERENG --done-status Closed --live`
+hrc-jira project *args: build _disc _out (tas movies / "hrc_puff_rest.tas")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --release -p melee-sidecar
+    target/release/melee-sidecar --addr 127.0.0.1:{{events_port}} --project {{project}} {{args}} &
+    sidecar=$!
+    sleep 3
+    kill -0 $sidecar
+    {{quiet}} MELEE_CAPTURE={{out_dir}}/hrc_jira.mp4 MELEE_EVENTS_ADDR=127.0.0.1:{{events_port}} MELEE_NET_REPLAY={{out_dir}}/hrc_puff_rest.mrc MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER=15 MELEE_DEBUG_OVERLAYS=1 MELEE_EXIT_AFTER_FRAMES=800 {{build_dir}}/melee --no-card "{{disc}}"
+    wait $sidecar
 
 # listen for NDJSON match events and pretty-print them
 events:

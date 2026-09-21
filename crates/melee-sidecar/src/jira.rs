@@ -94,6 +94,11 @@ impl Jira {
         ticket_from_row(row, &scope.label)
     }
 
+    pub async fn require_transition(&self, ticket: &Ticket, to: &str) -> Result<(), Error> {
+        let available = self.client.transitions(&ticket.key).await.map_err(jira)?;
+        resolve_transition(&ticket.key, &available, to).map(|_| ())
+    }
+
     pub async fn apply(&self, action: &Action) -> Result<(), Error> {
         if self.mode == Mode::DryRun {
             println!("dry-run: would {action}");
