@@ -1691,6 +1691,10 @@ extern "C" bool pc_is_ucf_enabled(void) {
     static const char* env = std::getenv("MELEE_UCF");
     return env ? env[0] != '0' : prefs.ucf;
 }
+extern "C" bool pc_is_cstick_1p_enabled(void) {
+    static const char* env = std::getenv("MELEE_CSTICK_1P");
+    return env != nullptr && env[0] != '0';
+}
 extern "C" int pc_get_hud_mode(void) {
     return prefs.hud_mode;
 }

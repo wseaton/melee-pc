@@ -1,5 +1,9 @@
 #include "fighter.h"
 
+#ifdef TARGET_PC
+#include <pc/pc.h>
+#endif
+
 #include <math.h>
 #include <placeholder.h>
 
@@ -1839,8 +1843,14 @@ void Fighter_Spaghetti_8006AD10(Fighter_GObj* gobj)
                 SET_STICKS(fp->input.lstick[0].x, fp->input.lstick[0].y,
                            HSD_PadGameStatus[fp->x618_player_id].nml_stickX,
                            HSD_PadGameStatus[fp->x618_player_id].nml_stickY);
+#ifdef TARGET_PC
+                if (DbLevel < DbLKind_DebugRom &&
+                    (gm_IsCurrently1PMode_inline() == 0 ||
+                     pc_is_cstick_1p_enabled()))
+#else
                 if (DbLevel < DbLKind_DebugRom &&
                     gm_IsCurrently1PMode_inline() == 0)
+#endif
                 {
                     SET_STICKS(
                         fp->input.cstick[0].x, fp->input.cstick[0].y,

@@ -82,6 +82,7 @@ uint16_t VIPadFrameBufferWidth(uint16_t width);
 /* Feature queries */
 bool pc_is_custom_textures_enabled(void);
 bool pc_is_unlock_all_enabled(void);
+bool pc_is_cstick_1p_enabled(void);
 bool pc_is_frozen_stadium_enabled(void);
 bool pc_is_free_camera_enabled(void);
 bool pc_is_ucf_enabled(void);

@@ -7,7 +7,7 @@ movies := "crates/melee-tas/movies"
 disc := env_var_or_default("MELEE_DISC", "")
 events_port := "7788"
 quiet := "MELEE_MUTE=1"
-unlocked := "MELEE_UNLOCK_ALL=1"
+play := "MELEE_UNLOCK_ALL=1 MELEE_CSTICK_1P=1"
 size := "1920x1080"
 hrc_movie := "hrc_puff_rest_bat"
 
@@ -64,13 +64,13 @@ smoke-capture frames="300": build-smoke _out
     MELEE_CAPTURE={{out_dir}}/smoke.mp4 {{build_dir}}/debug_ui_smoke {{frames}} overlays
     just probe {{out_dir}}/smoke.mp4
 
-# play the game normally, everything unlocked; extra args go to the game, e.g. `just run --no-card`
+# play the game normally, everything unlocked and C-stick smashes in 1P modes; extra args go to the game, e.g. `just run --no-card`
 run *args: build _disc
-    {{unlocked}} {{build_dir}}/melee {{args}} "{{disc}}"
+    {{play}} {{build_dir}}/melee {{args}} "{{disc}}"
 
 # play with the HUD overlays on (F3 toggles them, F2 opens the debug window)
 run-hud *args: build _disc
-    {{unlocked}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} "{{disc}}"
+    {{play}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} "{{disc}}"
 
 # play while recording inputs to build/captures/<name>.mrc
 record name="session": build _disc _out
@@ -99,7 +99,7 @@ demo: (tas movies / "debug_vs_full_match.tas")
 
 # play Home Run Contest with no menus; character is a CKind number (15 is Jigglypuff)
 hrc character="15" *args: build _disc
-    MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} --no-card "{{disc}}"
+    {{play}} MELEE_BOOT_SCENE=homerun MELEE_BOOT_CHARACTER={{character}} MELEE_DEBUG_OVERLAYS=1 {{build_dir}}/melee {{args}} --no-card "{{disc}}"
 
 # render a Home Run Contest movie to build/captures/<stem>.mp4, muted
 hrc-render movie character="15" frames="0": build _disc _out

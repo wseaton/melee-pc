@@ -206,6 +206,7 @@ per-device `.controller` files; everything else shares `launcher.cfg`.
 | `MELEE_PREWARM=0` | Skip the background asset pre-warm after boot. |
 | `MELEE_FAST_FADES=1` | Clamp scene fade delays. |
 | `MELEE_PIPELINE_JOBS=<n>` | Background shader-pipeline compile threads (default half the hardware threads, 1..8). |
+| `MELEE_CSTICK_1P=1` | C-stick smash attacks and aerials in the 1P modes (Classic, Adventure, All-Star, Training, the Stadium modes and the Multi-Man variants), where the original game gives the C-stick to the camera zoom instead. The zoom is off while this is set. A movie that uses the C-stick in a 1P mode only replays the same with the same setting. |
 | `MELEE_UNLOCK_ALL=1` | Every character, stage and feature is available whatever the save file says; `0` forces the save file's own unlocks. Overrides the `unlock_all` launcher.cfg pref. A netplay session's pinned rules still win. With no memory card everything is unlocked already. |
 | `MELEE_UCF=1` | Universal Controller Fix (UCF 0.8x dashback and shield-drop rules); overrides the `ucf` launcher.cfg pref. |
 | `MELEE_TRACE=<file.csv>` | Write one row per live player per simulation frame: `frame,player,character,x,y,damage`. For tuning TAS movies against real positions. |

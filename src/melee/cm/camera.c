@@ -1416,6 +1416,11 @@ void Camera_8002B0E0(void)
     f32 var_f2;
     PAD_STACK(8);
 
+#ifdef TARGET_PC
+    if (pc_is_cstick_1p_enabled()) {
+        return;
+    }
+#endif
     if ((gm_IsCurrently1PMode_inline() != 0) && (game_camera.x2C0 > 0.0f)) {
         {
             s32 idx = Player_GetPlayerId(0) & 0xFF;
