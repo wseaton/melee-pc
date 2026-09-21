@@ -7,8 +7,10 @@ mod menu;
 mod overlay;
 mod painter;
 mod shipper;
+mod trace;
 
 use std::ffi::c_void;
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -17,11 +19,13 @@ use melee_events::{Envelope, Event};
 
 use crate::capture::{Capture, CaptureFrame};
 use crate::events::Tracker;
+use crate::game::{Player, Slot};
 use crate::gpu::{WGPUDevice, WGPUQueue, WGPURenderPassEncoder, WGPUTextureFormat};
 use crate::input::{InputEvent, NavAction, RawEvent, key_tap};
 use crate::overlay::Hud;
 use crate::painter::{Frame, Painter, Target};
 use crate::shipper::Shipper;
+use crate::trace::Trace;
 
 #[repr(C)]
 pub struct OverlayFrame {
@@ -96,6 +100,7 @@ struct RenderSide {
 struct Monitor {
     tracker: Tracker,
     hud: Hud,
+    trace: Option<Trace>,
 }
 
 struct Telemetry {
@@ -185,6 +190,13 @@ impl DebugUi {
             monitor.hud.ingest(frame_count, event);
         }
         monitor.hud.expire(frame_count);
+        if let Some(trace) = monitor.trace.as_mut() {
+            let players: Vec<Player> = Slot::all().filter_map(game::player).collect();
+            if let Err(error) = trace.record(frame_count, &players) {
+                eprintln!("trace: {error}, disabling the trace");
+                monitor.trace = None;
+            }
+        }
         if let Some(telemetry) = lock(&self.telemetry).as_mut() {
             telemetry.ship(frame_count, events);
         }
@@ -271,8 +283,17 @@ pub extern "C" fn debug_ui_create() -> *mut DebugUi {
     let telemetry = std::env::var("MELEE_EVENTS_ADDR")
         .ok()
         .and_then(Telemetry::connect);
+    let trace = std::env::var_os("MELEE_TRACE").and_then(|path| {
+        Trace::create(Path::new(&path))
+            .inspect_err(|error| eprintln!("trace: cannot create {}: {error}", path.display()))
+            .ok()
+    });
     Box::into_raw(Box::new(DebugUi {
         telemetry: Mutex::new(telemetry),
+        monitor: Mutex::new(Monitor {
+            trace,
+            ..Monitor::default()
+        }),
         capture: Capture::from_env(),
         ..DebugUi::default()
     }))

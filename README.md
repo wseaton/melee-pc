@@ -207,6 +207,7 @@ per-device `.controller` files; everything else shares `launcher.cfg`.
 | `MELEE_FAST_FADES=1` | Clamp scene fade delays. |
 | `MELEE_PIPELINE_JOBS=<n>` | Background shader-pipeline compile threads (default half the hardware threads, 1..8). |
 | `MELEE_UCF=1` | Universal Controller Fix (UCF 0.8x dashback and shield-drop rules); overrides the `ucf` launcher.cfg pref. |
+| `MELEE_TRACE=<file.csv>` | Write one row per live player per simulation frame: `frame,player,character,x,y,damage`. For tuning TAS movies against real positions. |
 | `MELEE_MUTE=1` | Force the output gain to 0 whatever the launcher volume says. The mixer still runs, so `MELEE_AUDIO_DUMP` and game timing are unaffected. |
 | `MELEE_GC_ADAPTER=0` | Hand the GameCube adapter (WUP-028) back to SDL's gamepad driver instead of reading it raw. |
 | `MELEE_CAPTURE=<out.mp4>` | Read every presented frame (game image plus overlays) back off the GPU and pipe it to `ffmpeg`. Forces VSync off and lets the encoder set the pace: the game blocks rather than dropping a frame, so a replay always yields a complete file. The file is tagged with the simulation rate at the moment capture starts (60 fps unless the debug menu changed it), and changing that rate or the window size mid-capture ends the recording. Frames presented while the F1 menu holds the game paused are recorded too, so the recorded frame index only matches the simulation frame index for a run that never opens it. Video only. |
